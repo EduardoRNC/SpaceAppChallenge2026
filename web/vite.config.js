@@ -8,7 +8,7 @@ export default defineConfig({
   base: "./",
   build: {
     rollupOptions: {
-      input: { main: page("index.html"), jukebox: page("jukebox.html") },
+      input: { main: page("index.html") },
     },
   },
 });

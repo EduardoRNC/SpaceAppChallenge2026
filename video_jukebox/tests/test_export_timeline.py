@@ -308,38 +308,6 @@ def test_mask_check_finds_static_overlay(tmp_path, overlay):
         assert static.sum() == 0
 
 
-def test_flow_experiment_keyframe_window():
-    import flow_experiment as fx
-    key = np.zeros(50, bool)
-    key[[0, 24, 48]] = True
-    t1 = fx.touches_key(key, 49, 1)
-    assert np.where(t1)[0].tolist() == [0, 23, 24, 47, 48]
-    t6 = fx.touches_key(key, 49, 6)
-    assert t6[23:30].all() and not t6[22] and not t6[30]     # frames [i-5, i+1] contienen el 24
-
-
-def test_flow_experiment_stride1_matches_analyze(tmp_path):
-    import analyze
-    import flow_experiment as fx
-    video = str(write_synthetic_video(tmp_path / "v.avi", seconds=2, fps=30))
-    s1, u1, sn, un = fx.measure(video, 6, 128)
-    ref = analyze.analyze(video, width=128)
-    assert np.allclose(s1, ref["speed"], atol=1e-5) and np.allclose(u1, ref["u"], atol=1e-5)
-    assert np.isnan(sn[:5]).all() and not np.isnan(sn[5:]).any()
-
-
-def test_compare_lossless_helpers():
-    import compare_lossless as cl
-    lv = cl.video_levels(np.array([[[0, 128, 255]]], np.uint8))
-    assert lv.tolist() == [[[16, 126, 235]]]
-    rng = np.random.default_rng(0)
-    base = [rng.standard_normal((32, 64)).cumsum(1) for _ in range(30)]
-    noisy = [b + 0.3 * rng.standard_normal(b.shape) for b in base]
-    al = cl.alignment(base, noisy[1:] + noisy[:1])        # MP4 adelantado un frame
-    assert max(al, key=al.get) == -1
-    assert max(cl.alignment(base, noisy).items(), key=lambda kv: kv[1])[0] == 0
-
-
 def test_diagnostics_plots(tmp_path, timeline):
     import cv2
     import diagnostics

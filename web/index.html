@@ -1,135 +1,150 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>La espiral que suena — Earth Information Jukebox</title>
+    <title>Earth Information Jukebox — NASA visualizations you can hear</title>
     <meta
       name="description"
-      content="Escucha el calentamiento global: la NASA Climate Spiral convertida en sonido."
+      content="NASA Earth visualizations turned into four voices of music, with synchronized video, tracks and charts."
     />
     <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="./src/jukebox/jukebox.css" />
   </head>
   <body>
-    <a class="skip-link" href="#main">Saltar al contenido</a>
-    <header>
-      <h1>La espiral que suena</h1>
-      <p>
-        Un jukebox de datos de la Tierra: temperatura, CO₂ y hielo ártico, para escuchar.
-        Pulsa <kbd>Espacio</kbd> para reproducir.
+    <a class="skip-link" href="#main" data-i18n="page.skip">Skip to content</a>
+    <header class="jb-header">
+      <div class="jb-lang" role="group" aria-label="Language" data-i18n-attr="aria-label:lang.label">
+        <button type="button" lang="en" data-lang="en" aria-pressed="true">English</button>
+        <span aria-hidden="true">/</span>
+        <button type="button" lang="es" data-lang="es" aria-pressed="false">Español</button>
+      </div>
+      <h1 data-i18n="header.title">Earth Information Jukebox</h1>
+      <p data-i18n-html="header.intro">
+        NASA Earth visualizations turned into four voices of music. Choose a video and press
+        <kbd>Space</kbd> to play.
+      </p>
+      <p class="jb-picker">
+        <label for="jb-picker" data-i18n="header.picker">Video</label>
+        <select id="jb-picker" disabled></select>
       </p>
     </header>
 
     <main id="main">
-      <section aria-labelledby="track-title" class="player">
-        <div class="field">
-          <label for="track">Pista del jukebox</label>
-          <select id="track"></select>
-        </div>
+      <section aria-labelledby="jb-title" class="jb-player">
+        <h2 id="jb-title" data-i18n="player.loading">Loading…</h2>
+        <p id="jb-intro" class="jb-intro"></p>
+        <p id="jb-test" class="jb-test" hidden data-i18n="header.testBadge">Test video: synthetic, not NASA data.</p>
 
-        <h2 id="track-title">Cargando…</h2>
-        <p id="track-description"></p>
-
-        <fieldset class="modes">
-          <legend>Modo</legend>
-          <label>
-            <input type="radio" name="mode" value="history" checked />
-            <span><strong>Historia</strong>: <span id="history-label">de 1880 a hoy, con la visualización.</span></span>
-          </label>
-          <label>
-            <input type="radio" name="mode" value="explore" />
-            <span><strong>Explorar</strong>: elige un año y escucha sus 12 meses despacio.</span>
-          </label>
-          <label>
-            <input type="radio" name="mode" value="compare" />
-            <span><strong>Comparar</strong>: <span id="compare-label">la década de 1880 frente a la de 2010.</span></span>
-          </label>
-        </fieldset>
-
-        <figure class="spiral">
-          <video id="spiral" muted playsinline preload="auto" aria-describedby="spiral-desc"></video>
-          <div id="still" class="still" role="img" aria-describedby="spiral-desc" hidden>
-            <img id="still-img" alt="" />
-            <div id="playhead" class="playhead" hidden></div>
-          </div>
-          <figcaption>
-            <span id="spiral-desc"></span>
-            <span id="spiral-credit"></span>
-          </figcaption>
+        <figure class="jb-figure">
+          <video id="jb-video" muted playsinline preload="auto" aria-describedby="jb-caption"></video>
+          <figcaption id="jb-caption"></figcaption>
         </figure>
 
-        <div class="readout" aria-hidden="true">
-          <span id="year">----</span>
-          <span id="value"></span>
+        <div id="jb-notice" class="jb-notice" role="alert">
+          <p id="jb-notice-text"></p>
+          <button id="jb-retry" type="button" hidden>Retry</button>
         </div>
 
-        <div id="explore-panel" class="field" hidden>
-          <label for="year-slider">Año a explorar</label>
-          <input id="year-slider" type="range" step="1" />
+        <div class="jb-transport">
+          <button id="jb-play" type="button" class="primary" disabled>Play</button>
+          <button id="jb-back" type="button" disabled aria-label="Back 5 seconds" data-i18n-attr="aria-label:transport.back">−5 s</button>
+          <button id="jb-fwd" type="button" disabled aria-label="Forward 5 seconds" data-i18n-attr="aria-label:transport.forward">+5 s</button>
+          <output id="jb-time" class="jb-time">0:00.0 / 0:00.0</output>
         </div>
+        <label for="jb-seek" class="visually-hidden" data-i18n="transport.position">Position</label>
+        <input id="jb-seek" type="range" min="0" max="1" step="0.01" value="0" disabled />
 
-        <div class="buttons">
-          <button id="play" type="button" class="primary" disabled>Reproducir</button>
-        </div>
+        <p class="jb-readout">
+          <span id="jb-date"></span>
+          <span id="jb-bar"></span>
+          <span id="jb-chord"></span>
+        </p>
 
-        <p id="status" role="status" aria-live="polite"></p>
-        <p id="announce-log" class="announce-log"></p>
+        <figure class="jb-roll" hidden>
+          <canvas
+            id="jb-roll"
+            role="slider"
+            tabindex="0"
+            aria-label="Piano roll: chords and notes of the four tracks"
+            aria-describedby="jb-roll-caption"
+            data-i18n-attr="aria-label:roll.label"
+          ></canvas>
+          <figcaption id="jb-roll-caption" data-i18n="roll.caption">
+            10-second piano roll: chords on top and one row per track (high notes at the top). The orange
+            line is what is sounding now. Click the chart to jump to that moment, or focus it and use the
+            arrow keys (one beat), Page Up / Page Down (one bar) and Home / End.
+          </figcaption>
+          <p id="jb-now" class="jb-note"></p>
+        </figure>
+
+        <fieldset class="jb-mixer">
+          <legend data-i18n="mixer.legend">Tracks</legend>
+          <ul id="jb-stems" class="jb-stems"></ul>
+          <button id="jb-reset" type="button" disabled data-i18n="mixer.reset">Unmute all</button>
+        </fieldset>
+
+        <p id="jb-status" role="status" aria-live="polite"></p>
+
+        <details class="jb-debug">
+          <summary data-i18n="debug.summary">Audio–video sync (diagnostics)</summary>
+          <pre id="jb-debug-values"></pre>
+        </details>
       </section>
 
-      <section aria-labelledby="legend-title">
-        <h2 id="legend-title">Cómo escucharlo</h2>
-        <ul id="legend-list"></ul>
+      <section aria-labelledby="jb-regions-title" class="jb-regions" hidden>
+        <h2 id="jb-regions-title" data-i18n="regions.title">What the image measures, by region</h2>
+        <p class="jb-warning" data-i18n-html="regions.warning"></p>
+        <p id="jb-proxy-note" class="jb-note"></p>
+        <p class="jb-note" data-i18n="regions.keys">
+          Click a chart to jump to that moment, or focus it and use the arrow keys (1 s), Page Up / Page
+          Down (10 s) and Home / End.
+        </p>
+        <fieldset id="jb-region-picker" class="jb-region-picker"></fieldset>
+        <div id="jb-charts" class="jb-charts"></div>
       </section>
 
-      <section aria-labelledby="keys-title">
-        <h2 id="keys-title">Atajos de teclado</h2>
-        <dl id="shortcuts" class="shortcuts"></dl>
+      <section aria-labelledby="jb-map-title" class="jb-map" hidden>
+        <h2 id="jb-map-title" data-i18n="map.title">What controls each instrument</h2>
+        <p data-i18n="map.intro"></p>
+        <ul id="jb-mapping" class="jb-mapping"></ul>
       </section>
 
-      <section aria-labelledby="settings-title">
-        <h2 id="settings-title">Ajustes</h2>
-        <fieldset>
-          <legend>Velocidad de la Historia</legend>
-          <label><input type="radio" name="speed" value="300" /> Muy lenta (~5 min)</label>
-          <label><input type="radio" name="speed" value="150" /> Lenta (~2.5 min)</label>
-          <label><input type="radio" name="speed" value="60" /> Pausada (~1 min)</label>
-          <label><input type="radio" name="speed" value="25" checked /> Rápida (~25 s)</label>
-        </fieldset>
-        <fieldset>
-          <legend>Intro</legend>
-          <label>
-            <input type="checkbox" id="intro-toggle" checked />
-            Breve explicación en inglés de cada capa antes de reproducir desde el principio (~15 s)
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend>Prueba de escucha</legend>
-          <label>
-            <input type="checkbox" id="blind-mode" />
-            Prueba a ciegas: ocultar el vídeo, el año y el valor
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend>Capas de sonido</legend>
-          <label><input type="checkbox" name="layer" value="melody" checked /> Melodía anual</label>
-          <label><input type="checkbox" name="layer" value="arp" checked /> Arpegio mensual (agudo)</label>
-          <label><input type="checkbox" name="layer" value="ostinato" checked /> Ostinato de fondo (grave)</label>
-          <label><input type="checkbox" name="layer" value="drone" checked /> Drone y disonancia</label>
-          <label><input type="checkbox" name="layer" value="pulse" checked /> Latido</label>
-          <label><input type="checkbox" name="layer" value="ticks" checked /> Tick de década</label>
-          <label><input type="checkbox" name="layer" value="records" checked /> Campanita de récord</label>
-          <label><input type="checkbox" name="layer" value="frames" checked /> Color de la espiral (trémolo)</label>
-        </fieldset>
+      <section aria-labelledby="jb-keys-title">
+        <h2 id="jb-keys-title" data-i18n="keys.title">Keyboard shortcuts</h2>
+        <dl class="shortcuts">
+          <dt><kbd data-i18n="keys.space">Space</kbd></dt>
+          <dd data-i18n="keys.playPause">Play or pause</dd>
+          <dt><kbd>←</kbd> / <kbd>→</kbd></dt>
+          <dd data-i18n="keys.step">Back or forward 5 s</dd>
+          <dt><kbd data-i18n="keys.home">Home</kbd> / <kbd data-i18n="keys.end">End</kbd></dt>
+          <dd data-i18n="keys.startEnd">Go to the start or the end</dd>
+          <dt><kbd>1</kbd> … <kbd>4</kbd></dt>
+          <dd data-i18n="keys.mute">Mute or unmute a track</dd>
+          <dt><kbd data-i18n="keys.shift">Shift</kbd> + <kbd>1</kbd> … <kbd>4</kbd></dt>
+          <dd data-i18n="keys.solo">Solo a track</dd>
+          <dt><kbd>0</kbd></dt>
+          <dd data-i18n="keys.reset">Unmute all tracks</dd>
+        </dl>
+        <p class="jb-note" data-i18n="keys.note">
+          When a button has focus, Space and Enter press it. On the position bar, the piano roll and the
+          charts, the arrow keys, Home and End move within that control. Text fields and drop-downs have no
+          shortcuts.
+        </p>
+      </section>
+
+      <section aria-labelledby="jb-what-title">
+        <h2 id="jb-what-title" data-i18n="what.title">What you are hearing</h2>
+        <p data-i18n-html="what.body">
+          Each voice follows an index computed from the video's pixels (color, apparent motion, eddies).
+          They are <strong>visual indices</strong>, not calibrated scientific measurements. What does come
+          from NASA is the model date of each frame.
+        </p>
+        <p id="jb-disclaimer" class="jb-note"></p>
       </section>
     </main>
 
-    <footer>
-      <p>
-        Datos: NASA GISS (GISTEMP v4), NOAA GML (CO₂ de Mauna Loa) y NSIDC (Sea Ice
-        Index v4). Visualizaciones: NASA Scientific Visualization Studio. Proyecto para NASA Space Apps Challenge 2026. No está
-        respaldado por NASA.
-      </p>
-    </footer>
-    <script type="module" src="./src/main.js"></script>
+    <footer id="jb-credits"></footer>
+    <script type="module" src="./src/jukebox/main.js"></script>
   </body>
 </html>

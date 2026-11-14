@@ -1,6 +1,7 @@
 """
-Revisa qué píxeles entran en la máscara de analyze.py y si hay superposiciones estáticas
-(textos, fecha, barra de color, logos) que contaminen las medidas.
+Revisa qué píxeles entran en la máscara de un analizador y si hay superposiciones estáticas
+(textos, fecha, barra de color, logos) que contaminen las medidas. Úsalo con cada video nuevo
+antes de añadirlo al jukebox.
 
 Toma N frames repartidos por el video y, por píxel, mira cuántas veces pasa la máscara y
 cuánto cambia. Una superposición es un píxel coloreado que está SIEMPRE en la máscara y
@@ -11,14 +12,16 @@ casi no cambia; las líneas de corriente se mueven y cambian de brillo.
                    de esos píxeles; y las cajas de los grupos estáticos más grandes
 
 Uso:
-    python mask_check.py video.mp4 out/prefijo [--samples 40] [--width 512]
+    python mask_check.py video.mp4 out/prefijo [--analyzer ocean_flow] [--samples 40] [--width 512]
 """
 import argparse
 
 import cv2
 import numpy as np
 
-from analyze import BANDS, band_rows, ocean_mask, temperature_index
+import analyzers
+from analyzers import BANDS, band_rows
+from analyzers.common import Frame, hue_index as temperature_index
 
 MIN_PERSIST = 0.95      # fracción de muestras en la máscara
 MAX_STD_V = 8.0         # variación de brillo (0-255) por debajo de la cual el píxel es "quieto"
@@ -40,9 +43,10 @@ def sample_frames(path, n, width):
     return frames
 
 
-def check(frames):
+def check(frames, analyzer=analyzers.get("ocean_flow")):
     hsv = np.stack([cv2.cvtColor(f, cv2.COLOR_BGR2HSV) for f in frames])
-    mask = np.stack([ocean_mask(x) for x in hsv])
+    mask = np.stack([analyzer.mask(Frame(f, cv2.cvtColor(f, cv2.COLOR_BGR2GRAY), x))
+                     for f, x in zip(frames, hsv)])
     temp = np.stack([temperature_index(x) for x in hsv])
     persist = mask.mean(0)
     static = (persist >= MIN_PERSIST) & (hsv[..., 2].astype(np.float32).std(0) < MAX_STD_V)
@@ -84,11 +88,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("video")
     ap.add_argument("out", help="prefijo de salida (sin extensión)")
+    ap.add_argument("--analyzer", default="ocean_flow", choices=sorted(analyzers.ANALYZERS))
     ap.add_argument("--samples", type=int, default=40)
     ap.add_argument("--width", type=int, default=512)
     a = ap.parse_args()
     frames = sample_frames(a.video, a.samples, a.width)
-    mask, temp, persist, static = check(frames)
+    mask, temp, persist, static = check(frames, analyzers.get(a.analyzer))
     print(f"{len(frames)} frames de muestra a {frames[0].shape[1]}x{frames[0].shape[0]}")
     report(mask, temp, static)
     cv2.imwrite(a.out + "_mask.png", overlay(frames[len(frames) // 2].copy(), persist, static))

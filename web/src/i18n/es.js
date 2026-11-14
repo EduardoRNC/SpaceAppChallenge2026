@@ -1,26 +1,24 @@
-// Español. Mismas claves que en.js (lo comprueban los tests). Los textos de `data` son
-// los del manifiesto y del timeline.json tal como los escribe el pipeline.
+// Español. Mismas claves que en.js (lo comprueban los tests). Lo que depende de cada vídeo
+// (título, pistas, medidas, créditos) llega en su manifiesto (texts.es) bajo "data.".
 
 export default {
   page: {
-    title: "Video jukebox: el océano que suena — Earth Information Jukebox",
-    description:
-      "Corrientes y temperatura del océano (NASA SVS, modelo ECCO2) convertidas en cuatro voces de música.",
+    title: "Earth Information Jukebox — visualizaciones de NASA que se escuchan",
+    description: "Visualizaciones de la Tierra de NASA convertidas en cuatro voces de música, con vídeo, pistas y gráficas sincronizados.",
     skip: "Saltar al contenido",
   },
   lang: {
     label: "Idioma",
   },
   header: {
-    title: "El océano que suena",
-    intro:
-      "Las corrientes y la temperatura del océano de un año del modelo ECCO2, en la visualización del NASA SVS, convertidas en cuatro voces. Pulsa <kbd>Espacio</kbd> para reproducir.",
-    spiral: "← La espiral que suena",
+    title: "Earth Information Jukebox",
+    intro: "Visualizaciones de la Tierra de NASA convertidas en cuatro voces de música. Elige un vídeo y pulsa <kbd>Espacio</kbd> para reproducir.",
+    picker: "Vídeo",
+    test: "{title} (vídeo de prueba, no son datos de NASA)",
+    testBadge: "Vídeo de prueba: sintético, no son datos de NASA.",
   },
   player: {
     loading: "Cargando…",
-    caption:
-      "Corrientes superficiales coloreadas por la temperatura del mar (azul, frío; rojo, cálido). Visualización: NASA/GSFC Scientific Visualization Studio.",
   },
   transport: {
     play: "Reproducir",
@@ -98,16 +96,18 @@ export default {
     shortStems: "pistas de audio más cortas de lo esperado: {ids}",
     manifest: "manifiesto de activos no válido: {problems}",
     timeline: "timeline no válido: {problems}",
+    catalog: "lista de vídeos no válida: {problems}",
   },
   problems: {
     manifest: {
       schema: "esquema desconocido: {value}",
       version: "versión no soportada: {value}",
-      stems: "pistas inesperadas: {ids}",
+      stems: "tiene que haber cuatro pistas, con ids y papeles distintos: {ids}",
       path: "ruta no relativa: {src}",
       video: "vídeo sin fps o frames",
       audio: "audio sin longitud",
-      credits: "faltan los créditos del NASA SVS",
+      credits: "faltan los créditos de NASA",
+      texts: "faltan los textos en inglés y en español",
     },
     timeline: {
       schema: "esquema de timeline desconocido: {value}",
@@ -119,6 +119,12 @@ export default {
       duration: "la música dura más que el audio",
       features: "features.t no tiene un valor por fotograma",
       metric: "medida {id} no marcada como proxy visual sin calibrar",
+      mapping: "el timeline no dice qué medida controla cada pista",
+    },
+    catalog: {
+      schema: "esquema de lista desconocido: {value}",
+      empty: "la lista no tiene vídeos",
+      entry: "vídeo sin id o sin manifiesto: {id}",
     },
   },
   debug: {
@@ -135,7 +141,7 @@ export default {
   regions: {
     title: "Lo que mide la imagen, por región",
     warning:
-      "<strong>Todas estas medidas son proxies visuales sin calibrar.</strong> Se calculan a partir de los píxeles del vídeo (color y flujo óptico): no son temperaturas en °C, ni velocidades en m/s, ni vorticidad física. Se muestran por fotograma, sin el suavizado que usa la música. En este vídeo, las variaciones rápidas de movimiento aparente y turbulencia se deben sobre todo al ruido de compresión; el índice de color sí sigue las estaciones.",
+      "<strong>Todas estas medidas son proxies visuales sin calibrar.</strong> Se calculan a partir de los píxeles del vídeo (color, brillo, flujo óptico): no son mediciones físicas como temperaturas en °C o velocidades en m/s. Se muestran por fotograma, sin el suavizado que usa la música.",
     keys: "Pulsa en una gráfica para saltar a ese momento, o ponle el foco y usa las flechas (1 s), Re Pág / Av Pág (10 s) e Inicio / Fin.",
     picker: "Región (franja de latitud)",
     proxy: "Proxy visual · sin calibrar",
@@ -169,25 +175,6 @@ export default {
     use: "{metric} ({regions}):",
     effect: "{effect}.",
   },
-  effects: {
-    acordes: {
-      temp: "la diferencia norte − sur (las estaciones) elige, compás a compás, acordes oscuros o brillantes; con los más brillantes, las cuerdas suben una octava",
-    },
-    temperatura: {
-      temp: "la media de las cinco franjas fija el volumen del acorde",
-    },
-    corrientes: {
-      speed: "cada franja tiene su voz: suena cuando su movimiento supera el 45 % de su rango, y más fuerte cuanto más se mueve",
-      temp: "sube o baja la nota de la franja (±5 semitonos; norte = agudo, sur = grave)",
-      vort: "la media de las cinco franjas cambia el timbre (modulación)",
-    },
-    remolinos: {
-      vort: "una campanada en cada pico de la franja (más de 1,6 desviaciones típicas sobre su mediana); más aguda cuanto más al norte",
-    },
-    ecuatorial: {
-      u: "cuanto más hacia el oeste (valores negativos), más notas por compás y más fuertes",
-    },
-  },
   keys: {
     title: "Atajos de teclado",
     space: "Espacio",
@@ -205,74 +192,6 @@ export default {
   what: {
     title: "Qué estás oyendo",
     body:
-      "Cada voz sigue un índice calculado a partir de los píxeles del vídeo (color, movimiento aparente, remolinos). Son <strong>índices visuales</strong>, no mediciones científicas calibradas. Lo que sí procede de NASA es la fecha del modelo de cada fotograma.",
-  },
-  data: {
-    title: "Corrientes y temperatura del océano (ECCO2)",
-    notice:
-      "Proyecto para NASA Space Apps Challenge 2026. No está respaldado por NASA. Visualización de dominio público del NASA SVS.",
-    disclaimer:
-      "Las características son proxies visuales derivados de los píxeles del video (color y flujo óptico). No son mediciones físicas calibradas.",
-    stems: {
-      temperatura: { label: "Temperatura" },
-      corrientes: { label: "Corrientes" },
-      remolinos: { label: "Remolinos" },
-      ecuatorial: { label: "Corriente ecuatorial" },
-    },
-    credits: {
-      0: {
-        role: "Visualización",
-        text: "NASA/Goddard Space Flight Center Scientific Visualization Studio",
-        detail: "Greg Shirah, Horace Mitchell (NASA/GSFC), Eric Sokolowsky (GST)",
-      },
-      1: {
-        role: "Ciencia",
-        text: "Modelo ECCO2 (MIT/JPL)",
-        detail: "Hong Zhang (UCLA), Dimitris Menemenlis (NASA/JPL)",
-      },
-      2: {
-        role: "Música",
-        text: "Generada por este proyecto a partir de índices visuales del video",
-        detail: "Preview FM de 2 operadores (no es Dexed ni un DX7 real)",
-      },
-    },
-    metrics: {
-      temp: {
-        label: "Índice de color frío-cálido",
-        unit: "índice 0..1",
-        derived_from: "tono (hue HSV) del píxel: azul = 0, rojo = 1",
-        caveat: "Posición en la paleta de colores de la visualización, no temperatura en °C.",
-      },
-      speed: {
-        label: "Movimiento aparente",
-        unit: "px/frame",
-        derived_from: "magnitud media del flujo óptico (Farneback)",
-        caveat: "Depende de la resolución de análisis (--width) y del ritmo de la animación; no es velocidad en m/s.",
-      },
-      u: {
-        label: "Movimiento aparente este-oeste",
-        unit: "px/frame",
-        derived_from: "componente horizontal del flujo óptico (+ = este)",
-        caveat: "En proyección equirectangular un píxel horizontal abarca menos km cuanto más cerca del polo.",
-      },
-      v: {
-        label: "Movimiento aparente norte-sur",
-        unit: "px/frame",
-        derived_from: "componente vertical del flujo óptico (+ = norte)",
-        caveat: "Movimiento de las líneas dibujadas, no velocidad meridional física.",
-      },
-      vort: {
-        label: "Turbulencia aparente",
-        unit: "1/frame",
-        derived_from: "valor absoluto del rotacional del flujo óptico",
-        caveat: "Indicador de remolinos en la imagen, no vorticidad física en 1/s.",
-      },
-      cover: {
-        label: "Cobertura de píxeles válidos",
-        unit: "fracción 0..1",
-        derived_from: "píxeles que pasan la máscara de saturación y brillo",
-        caveat: "Fracción de píxeles coloreados, no fracción real de océano.",
-      },
-    },
+      "Cada voz sigue un índice calculado a partir de los píxeles del vídeo (color, brillo, movimiento aparente). Son <strong>índices visuales</strong>, no mediciones científicas calibradas. Lo que sí viene de NASA es la propia visualización y, cuando NASA la publica, la fecha de cada fotograma.",
   },
 };

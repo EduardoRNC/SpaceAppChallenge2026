@@ -1,9 +1,12 @@
 {
   "schema": "earth-jukebox-web",
-  "version": 1,
+  "version": 2,
+  "id": "ecco2",
+  "analyzer": "ocean_flow",
+  "svs": 3912,
   "title": "Corrientes y temperatura del océano (ECCO2)",
-  "generated_by": "video_jukebox/build_web.py",
-  "paths_relative_to": "la página (web/jukebox.html); válido con base './' en GitHub Pages",
+  "generated_by": "video_jukebox/jukebox.py build",
+  "paths_relative_to": "la página (web/index.html); válido con base './' en GitHub Pages",
   "video": {
     "src": "media/jukebox/ecco2.mp4",
     "fps": 30.0,
@@ -16,13 +19,14 @@
     "sample_rate": 44100,
     "samples": 2984099,
     "duration_s": 67.6666439909297,
-    "gain": 2.1540196500910596,
+    "gain": 2.245053383358308,
     "headroom_db": 1.0,
     "codec": "AAC 128 kb/s",
     "stems": [
       {
         "id": "temperatura",
         "channel": 0,
+        "role": "pad",
         "label": "Temperatura",
         "color": "#ff6b4a",
         "instrument": "Temperatura - STRINGS 1",
@@ -32,6 +36,7 @@
       {
         "id": "corrientes",
         "channel": 1,
+        "role": "voices",
         "label": "Corrientes",
         "color": "#4cc9f0",
         "instrument": "Corrientes - FLUTE 1",
@@ -41,6 +46,7 @@
       {
         "id": "remolinos",
         "channel": 2,
+        "role": "accents",
         "label": "Remolinos",
         "color": "#c77dff",
         "instrument": "Remolinos - TUB BELLS",
@@ -50,6 +56,7 @@
       {
         "id": "ecuatorial",
         "channel": 3,
+        "role": "bass",
         "label": "Corriente ecuatorial",
         "color": "#f4b942",
         "instrument": "Corriente ecuatorial - BASS 1",
@@ -68,8 +75,8 @@
     "last": "2008-03-03T12:00Z",
     "frames": 2001,
     "step_hours": 4.128,
-    "max_deviation_s": 57.59999990463257,
-    "source": "flat_ecco2_dates.txt"
+    "max_deviation_s": 0.0,
+    "source": "date_range"
   },
   "credits": [
     {
@@ -92,31 +99,225 @@
     }
   ],
   "notice": "Proyecto para NASA Space Apps Challenge 2026. No está respaldado por NASA. Visualización de dominio público del NASA SVS.",
-  "disclaimer": "Las características son proxies visuales derivados de los píxeles del video (color y flujo óptico). No son mediciones físicas calibradas.",
+  "disclaimer": "Las características son proxies visuales derivados de los píxeles del video. No son mediciones físicas calibradas.",
+  "texts": {
+    "en": {
+      "title": "Ocean currents and temperature (ECCO2)",
+      "intro": "One year of ocean currents and temperature from the ECCO2 model, as shown in the NASA SVS visualization, turned into four voices.",
+      "caption": "Surface currents colored by sea temperature (blue, cold; red, warm). Visualization: NASA/GSFC Scientific Visualization Studio.",
+      "proxy_note": "In this video, fast changes in apparent motion and turbulence are mostly compression noise; the color index does follow the seasons.",
+      "notice": "Project for the NASA Space Apps Challenge 2026. Not endorsed by NASA. Public-domain visualization from the NASA SVS.",
+      "disclaimer": "The features are visual proxies derived from the video's pixels. They are not calibrated physical measurements.",
+      "stems": {
+        "temperatura": {
+          "label": "Temperature"
+        },
+        "corrientes": {
+          "label": "Currents"
+        },
+        "remolinos": {
+          "label": "Eddies"
+        },
+        "ecuatorial": {
+          "label": "Equatorial current"
+        }
+      },
+      "metrics": {
+        "temp": {
+          "label": "Cold–warm color index",
+          "unit": "index 0..1",
+          "derived_from": "pixel hue (HSV): blue = 0, red = 1",
+          "caveat": "Position in the visualization's color palette, not temperature in °C."
+        },
+        "speed": {
+          "label": "Apparent motion",
+          "unit": "px/frame",
+          "derived_from": "mean optical-flow magnitude (Farneback)",
+          "caveat": "Depends on the analysis resolution (--width) and on the pace of the animation; not a speed in m/s."
+        },
+        "u": {
+          "label": "Apparent east–west motion",
+          "unit": "px/frame",
+          "derived_from": "horizontal optical-flow component (+ = east)",
+          "caveat": "In the equirectangular projection a horizontal pixel covers fewer km the closer it is to the pole."
+        },
+        "v": {
+          "label": "Apparent north–south motion",
+          "unit": "px/frame",
+          "derived_from": "vertical optical-flow component (+ = north)",
+          "caveat": "Motion of the drawn lines, not physical meridional velocity."
+        },
+        "vort": {
+          "label": "Apparent turbulence",
+          "unit": "1/frame",
+          "derived_from": "absolute value of the optical-flow curl",
+          "caveat": "An indicator of eddies in the image, not physical vorticity in 1/s."
+        },
+        "cover": {
+          "label": "Valid-pixel coverage",
+          "unit": "fraction 0..1",
+          "derived_from": "pixels that pass the saturation and brightness mask",
+          "caveat": "Fraction of colored pixels, not the actual fraction of ocean."
+        }
+      },
+      "effects": {
+        "acordes": {
+          "temp": "the north − south difference (the seasons) picks darker or brighter chords, bar by bar; with the brightest ones, the strings move up an octave"
+        },
+        "temperatura": {
+          "temp": "the mean of the five bands sets the volume of the chord"
+        },
+        "corrientes": {
+          "speed": "each band has its own voice: it sounds when its motion exceeds 45% of its range, and louder the more it moves",
+          "temp": "raises or lowers the band's note (±5 semitones; north = high, south = low)",
+          "vort": "the mean of the five bands changes the timbre (modulation)"
+        },
+        "remolinos": {
+          "vort": "a bell strike at each peak of the band (more than 1.6 standard deviations above its median); higher-pitched the further north"
+        },
+        "ecuatorial": {
+          "u": "the more westward (negative values), the more notes per bar and the louder they are"
+        }
+      },
+      "credits": {
+        "0": {
+          "role": "Visualization",
+          "text": "NASA/Goddard Space Flight Center Scientific Visualization Studio",
+          "detail": "Greg Shirah, Horace Mitchell (NASA/GSFC), Eric Sokolowsky (GST)"
+        },
+        "1": {
+          "role": "Science",
+          "text": "ECCO2 model (MIT/JPL)",
+          "detail": "Hong Zhang (UCLA), Dimitris Menemenlis (NASA/JPL)"
+        },
+        "2": {
+          "role": "Music",
+          "text": "Generated by this project from visual indices of the video",
+          "detail": "2-operator FM preview (not Dexed, not a real DX7)"
+        }
+      }
+    },
+    "es": {
+      "title": "Corrientes y temperatura del océano (ECCO2)",
+      "intro": "Las corrientes y la temperatura del océano de un año del modelo ECCO2, en la visualización del NASA SVS, convertidas en cuatro voces.",
+      "caption": "Corrientes superficiales coloreadas por la temperatura del mar (azul, frío; rojo, cálido). Visualización: NASA/GSFC Scientific Visualization Studio.",
+      "proxy_note": "En este vídeo, las variaciones rápidas de movimiento aparente y turbulencia se deben sobre todo al ruido de compresión; el índice de color sí sigue las estaciones.",
+      "notice": "Proyecto para NASA Space Apps Challenge 2026. No está respaldado por NASA. Visualización de dominio público del NASA SVS.",
+      "disclaimer": "Las características son proxies visuales derivados de los píxeles del video. No son mediciones físicas calibradas.",
+      "stems": {
+        "temperatura": {
+          "label": "Temperatura"
+        },
+        "corrientes": {
+          "label": "Corrientes"
+        },
+        "remolinos": {
+          "label": "Remolinos"
+        },
+        "ecuatorial": {
+          "label": "Corriente ecuatorial"
+        }
+      },
+      "metrics": {
+        "temp": {
+          "label": "Índice de color frío-cálido",
+          "unit": "índice 0..1",
+          "derived_from": "tono (hue HSV) del píxel: azul = 0, rojo = 1",
+          "caveat": "Posición en la paleta de colores de la visualización, no temperatura en °C."
+        },
+        "speed": {
+          "label": "Movimiento aparente",
+          "unit": "px/frame",
+          "derived_from": "magnitud media del flujo óptico (Farneback)",
+          "caveat": "Depende de la resolución de análisis (--width) y del ritmo de la animación; no es velocidad en m/s."
+        },
+        "u": {
+          "label": "Movimiento aparente este-oeste",
+          "unit": "px/frame",
+          "derived_from": "componente horizontal del flujo óptico (+ = este)",
+          "caveat": "En proyección equirectangular un píxel horizontal abarca menos km cuanto más cerca del polo."
+        },
+        "v": {
+          "label": "Movimiento aparente norte-sur",
+          "unit": "px/frame",
+          "derived_from": "componente vertical del flujo óptico (+ = norte)",
+          "caveat": "Movimiento de las líneas dibujadas, no velocidad meridional física."
+        },
+        "vort": {
+          "label": "Turbulencia aparente",
+          "unit": "1/frame",
+          "derived_from": "valor absoluto del rotacional del flujo óptico",
+          "caveat": "Indicador de remolinos en la imagen, no vorticidad física en 1/s."
+        },
+        "cover": {
+          "label": "Cobertura de píxeles válidos",
+          "unit": "fracción 0..1",
+          "derived_from": "píxeles que pasan la máscara de saturación y brillo",
+          "caveat": "Fracción de píxeles coloreados, no fracción real de océano."
+        }
+      },
+      "effects": {
+        "acordes": {
+          "temp": "la diferencia norte − sur (las estaciones) elige, compás a compás, acordes oscuros o brillantes; con los más brillantes, las cuerdas suben una octava"
+        },
+        "temperatura": {
+          "temp": "la media de las cinco franjas fija el volumen del acorde"
+        },
+        "corrientes": {
+          "speed": "cada franja tiene su voz: suena cuando su movimiento supera el 45 % de su rango, y más fuerte cuanto más se mueve",
+          "temp": "sube o baja la nota de la franja (±5 semitonos; norte = agudo, sur = grave)",
+          "vort": "la media de las cinco franjas cambia el timbre (modulación)"
+        },
+        "remolinos": {
+          "vort": "una campanada en cada pico de la franja (más de 1,6 desviaciones típicas sobre su mediana); más aguda cuanto más al norte"
+        },
+        "ecuatorial": {
+          "u": "cuanto más hacia el oeste (valores negativos), más notas por compás y más fuertes"
+        }
+      },
+      "credits": {
+        "0": {
+          "role": "Visualización",
+          "text": "NASA/Goddard Space Flight Center Scientific Visualization Studio",
+          "detail": "Greg Shirah, Horace Mitchell (NASA/GSFC), Eric Sokolowsky (GST)"
+        },
+        "1": {
+          "role": "Ciencia",
+          "text": "Modelo ECCO2 (MIT/JPL)",
+          "detail": "Hong Zhang (UCLA), Dimitris Menemenlis (NASA/JPL)"
+        },
+        "2": {
+          "role": "Música",
+          "text": "Generada por este proyecto a partir de índices visuales del video",
+          "detail": "Preview FM de 2 operadores (no es Dexed ni un DX7 real)"
+        }
+      }
+    }
+  },
   "assets": {
     "media/jukebox/ecco2.mp4": {
       "bytes": 10023016,
       "sha256": "4e3fbb2e24ab7da7452b247a7346c4eeaacb112c8c52550fc4b26e1fb73263ea"
     },
     "data/jukebox/ecco2_timeline.json": {
-      "bytes": 552821,
-      "sha256": "1674b2555e9dbf747b0cd5328169d7309080967d4fe652752eca31675cc811b6"
+      "bytes": 553732,
+      "sha256": "7f30b45845ce05bbfc4d67cb7b42cfec5a92a93321f72c18f27c3e67a6c161bf"
     },
     "media/jukebox/ecco2_temperatura.m4a": {
-      "bytes": 1106879,
-      "sha256": "efc7e0f156d3b1db86d5c962ae3c85f9e2c1151bbbc1c39b93b1bb26ed4bcad6"
+      "bytes": 1109489,
+      "sha256": "80881a1d4396bae04faa52ccd076ded468a86e3c19345bd5d93ef64c59070124"
     },
     "media/jukebox/ecco2_corrientes.m4a": {
-      "bytes": 1094623,
-      "sha256": "9a911f7956669d8f76a261120dfd0c172465e9195214c24fba8ee09cf86c2ae5"
+      "bytes": 1097770,
+      "sha256": "39aaff6b35a6c03966ba46bfa102cb61c20b717f6469016d3b4ed0aaa3bf790e"
     },
     "media/jukebox/ecco2_remolinos.m4a": {
-      "bytes": 829430,
-      "sha256": "30eba2f1b919a5bd4ef7a6d6e2082051e5701c143b560f49e9aeb6bbf78ce572"
+      "bytes": 863067,
+      "sha256": "7891132525f5e0fdee8f9050f559a030fcd0538b5ec0c17cb80168597a9391fc"
     },
     "media/jukebox/ecco2_ecuatorial.m4a": {
-      "bytes": 1108529,
-      "sha256": "7df74b7e32b43c3ea1b84295042f7f48ce431430c29307aa0b564e5f51c4e860"
+      "bytes": 1113695,
+      "sha256": "3a24233de0c3c8cd3701589f4db889e9d4b7c09e0ffd4ce1d69780fa04298e9a"
     }
   }
 }

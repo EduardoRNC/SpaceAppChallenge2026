@@ -1,26 +1,26 @@
 // English (default language). Same keys as es.js; tests check that none is missing.
+// What depends on each video (title, tracks, measures, credits) is not here: it comes in the
+// video manifest (texts.en / texts.es) and is added under "data." when the video loads.
 // Proper names (NASA, ECCO2, DX7), chord and note names, units and numbers stay as they are.
 
 export default {
   page: {
-    title: "Video jukebox: the ocean that sounds — Earth Information Jukebox",
-    description:
-      "Ocean currents and temperature (NASA SVS, ECCO2 model) turned into four voices of music.",
+    title: "Earth Information Jukebox — NASA visualizations you can hear",
+    description: "NASA Earth visualizations turned into four voices of music, with synchronized video, tracks and charts.",
     skip: "Skip to content",
   },
   lang: {
     label: "Language",
   },
   header: {
-    title: "The ocean that sounds",
-    intro:
-      "One year of ocean currents and temperature from the ECCO2 model, as shown in the NASA SVS visualization, turned into four voices. Press <kbd>Space</kbd> to play.",
-    spiral: "← The spiral that sounds (Spanish only)",
+    title: "Earth Information Jukebox",
+    intro: "NASA Earth visualizations turned into four voices of music. Choose a video and press <kbd>Space</kbd> to play.",
+    picker: "Video",
+    test: "{title} (test video, not NASA data)",
+    testBadge: "Test video: synthetic, not NASA data.",
   },
   player: {
     loading: "Loading…",
-    caption:
-      "Surface currents colored by sea temperature (blue, cold; red, warm). Visualization: NASA/GSFC Scientific Visualization Studio.",
   },
   transport: {
     play: "Play",
@@ -98,16 +98,18 @@ export default {
     shortStems: "audio tracks shorter than expected: {ids}",
     manifest: "invalid asset manifest: {problems}",
     timeline: "invalid timeline: {problems}",
+    catalog: "invalid list of videos: {problems}",
   },
   problems: {
     manifest: {
       schema: "unknown schema: {value}",
       version: "unsupported version: {value}",
-      stems: "unexpected tracks: {ids}",
+      stems: "tracks must be four, with different ids and roles: {ids}",
       path: "path is not relative: {src}",
       video: "video without fps or frames",
       audio: "audio without length",
-      credits: "the NASA SVS credits are missing",
+      credits: "the NASA credits are missing",
+      texts: "texts in English and Spanish are missing",
     },
     timeline: {
       schema: "unknown timeline schema: {value}",
@@ -119,6 +121,12 @@ export default {
       duration: "the music is longer than the audio",
       features: "features.t does not have one value per frame",
       metric: "metric {id} is not marked as an uncalibrated visual proxy",
+      mapping: "the timeline does not say which measure controls each track",
+    },
+    catalog: {
+      schema: "unknown list schema: {value}",
+      empty: "the list has no videos",
+      entry: "video entry without id or manifest: {id}",
     },
   },
   debug: {
@@ -135,7 +143,7 @@ export default {
   regions: {
     title: "What the image measures, by region",
     warning:
-      "<strong>All these measures are uncalibrated visual proxies.</strong> They are computed from the video's pixels (color and optical flow): they are not temperatures in °C, speeds in m/s or physical vorticity. They are shown frame by frame, without the smoothing the music uses. In this video, fast changes in apparent motion and turbulence are mostly compression noise; the color index does follow the seasons.",
+      "<strong>All these measures are uncalibrated visual proxies.</strong> They are computed from the video's pixels (color, brightness, optical flow): they are not physical measurements such as temperatures in °C or speeds in m/s. They are shown frame by frame, without the smoothing the music uses.",
     keys: "Click a chart to jump to that moment, or focus it and use the arrow keys (1 s), Page Up / Page Down (10 s) and Home / End.",
     picker: "Region (latitude band)",
     proxy: "Visual proxy · uncalibrated",
@@ -169,25 +177,6 @@ export default {
     use: "{metric} ({regions}):",
     effect: "{effect}.",
   },
-  effects: {
-    acordes: {
-      temp: "the north − south difference (the seasons) picks darker or brighter chords, bar by bar; with the brightest ones, the strings move up an octave",
-    },
-    temperatura: {
-      temp: "the mean of the five bands sets the volume of the chord",
-    },
-    corrientes: {
-      speed: "each band has its own voice: it sounds when its motion exceeds 45% of its range, and louder the more it moves",
-      temp: "raises or lowers the band's note (±5 semitones; north = high, south = low)",
-      vort: "the mean of the five bands changes the timbre (modulation)",
-    },
-    remolinos: {
-      vort: "a bell strike at each peak of the band (more than 1.6 standard deviations above its median); higher-pitched the further north",
-    },
-    ecuatorial: {
-      u: "the more westward (negative values), the more notes per bar and the louder they are",
-    },
-  },
   keys: {
     title: "Keyboard shortcuts",
     space: "Space",
@@ -205,74 +194,6 @@ export default {
   what: {
     title: "What you are hearing",
     body:
-      "Each voice follows an index computed from the video's pixels (color, apparent motion, eddies). They are <strong>visual indices</strong>, not calibrated scientific measurements. What does come from NASA is the model date of each frame.",
-  },
-  data: {
-    title: "Ocean currents and temperature (ECCO2)",
-    notice:
-      "Project for the NASA Space Apps Challenge 2026. Not endorsed by NASA. Public-domain visualization from the NASA SVS.",
-    disclaimer:
-      "The features are visual proxies derived from the video's pixels (color and optical flow). They are not calibrated physical measurements.",
-    stems: {
-      temperatura: { label: "Temperature" },
-      corrientes: { label: "Currents" },
-      remolinos: { label: "Eddies" },
-      ecuatorial: { label: "Equatorial current" },
-    },
-    credits: {
-      0: {
-        role: "Visualization",
-        text: "NASA/Goddard Space Flight Center Scientific Visualization Studio",
-        detail: "Greg Shirah, Horace Mitchell (NASA/GSFC), Eric Sokolowsky (GST)",
-      },
-      1: {
-        role: "Science",
-        text: "ECCO2 model (MIT/JPL)",
-        detail: "Hong Zhang (UCLA), Dimitris Menemenlis (NASA/JPL)",
-      },
-      2: {
-        role: "Music",
-        text: "Generated by this project from visual indices of the video",
-        detail: "2-operator FM preview (not Dexed, not a real DX7)",
-      },
-    },
-    metrics: {
-      temp: {
-        label: "Cold–warm color index",
-        unit: "index 0..1",
-        derived_from: "pixel hue (HSV): blue = 0, red = 1",
-        caveat: "Position in the visualization's color palette, not temperature in °C.",
-      },
-      speed: {
-        label: "Apparent motion",
-        unit: "px/frame",
-        derived_from: "mean optical-flow magnitude (Farneback)",
-        caveat: "Depends on the analysis resolution (--width) and on the pace of the animation; not a speed in m/s.",
-      },
-      u: {
-        label: "Apparent east–west motion",
-        unit: "px/frame",
-        derived_from: "horizontal optical-flow component (+ = east)",
-        caveat: "In the equirectangular projection a horizontal pixel covers fewer km the closer it is to the pole.",
-      },
-      v: {
-        label: "Apparent north–south motion",
-        unit: "px/frame",
-        derived_from: "vertical optical-flow component (+ = north)",
-        caveat: "Motion of the drawn lines, not physical meridional velocity.",
-      },
-      vort: {
-        label: "Apparent turbulence",
-        unit: "1/frame",
-        derived_from: "absolute value of the optical-flow curl",
-        caveat: "An indicator of eddies in the image, not physical vorticity in 1/s.",
-      },
-      cover: {
-        label: "Valid-pixel coverage",
-        unit: "fraction 0..1",
-        derived_from: "pixels that pass the saturation and brightness mask",
-        caveat: "Fraction of colored pixels, not the actual fraction of ocean.",
-      },
-    },
+      "Each voice follows an index computed from the video's pixels (color, brightness, apparent motion). They are <strong>visual indices</strong>, not calibrated scientific measurements. What does come from NASA is the visualization itself and, when NASA publishes it, the date of each frame.",
   },
 };

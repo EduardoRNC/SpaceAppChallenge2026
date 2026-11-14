@@ -5,27 +5,27 @@ the commands below (or to move the workflow template into `.github/workflows/`) 
 
 ## What gets published
 
-`npm run build` in `web/` writes a static site to `web/dist/` (about 30 MB):
+`npm run build` in `web/` writes a static site to `web/dist/` (about 15 MB per video):
 
 | Path | Page |
 |---|---|
-| `index.html` | *The spiral that sounds* (Climate Spiral, GISTEMP), Spanish only |
-| `jukebox.html` | *Video Jukebox* (ECCO2), English by default, Spanish available |
-| `media/`, `data/` | videos, audio stems, timeline and manifest (copied from `web/public/`) |
+| `index.html` | *Earth Information Jukebox*: video picker + player, English by default, Spanish available |
+| `data/jukebox/catalog.json` | the list of published videos (written by `video_jukebox/jukebox.py build`) |
+| `media/`, `data/` | per video: video, audio stems, timeline and manifest (copied from `web/public/`) |
 | `assets/` | JavaScript and CSS bundles |
 
 Vite is configured with `base: "./"`, so every URL in the built HTML is relative (`./assets/…`,
 `./index.html`) and the manifest paths are relative to the page. The site works from any
 subfolder, such as `https://<user>.github.io/SpaceAppChallenge2026/`, without rebuilding.
-`build_web.py` also checks that the jukebox assets exist and are relative.
+`build_web.py` also checks that the jukebox assets exist and are relative
+(`python video_jukebox/build_web.py --check-only` for every video in the catalog).
 
-The largest files are the videos (`media/jukebox/ecco2.mp4` 9.6 MB, `media/arctic_sea_ice_min.mp4`
-9.0 MB, `media/climate_spiral_es.mp4` 6.3 MB), well below the 100 MB per-file and 1 GB per-site
-limits of GitHub Pages.
+The largest files are the videos (`media/jukebox/ecco2.mp4` 10 MB; each video has a 12 MB
+budget), well below the 100 MB per-file and 1 GB per-site limits of GitHub Pages. Do not publish
+test videos (`jukebox.py add --test`): remove them first with `jukebox.py remove <id>`.
 
-NASA credits are part of the pages themselves, not of the deployment: the jukebox shows the SVS
-and ECCO2 credits (with authors and links) and the "not endorsed by NASA" notice in both
-languages, and the Climate Spiral page credits the NASA SVS and NASA GISS.
+NASA credits are part of the pages themselves, not of the deployment: each video shows its
+credits (with authors and links) and the "not endorsed by NASA" notice in both languages.
 
 ## Option A (recommended for the fork): a `gh-pages` branch built locally
 
@@ -51,8 +51,7 @@ cd ../SpaceAppChallenge2026 && git worktree remove ../pages-build
 Then, in the fork on GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a
 branch → `gh-pages` / `(root)`**. The site would be at:
 
-- `https://honokahk.github.io/SpaceAppChallenge2026/` (Climate Spiral)
-- `https://honokahk.github.io/SpaceAppChallenge2026/jukebox.html` (Video Jukebox)
+- `https://honokahk.github.io/SpaceAppChallenge2026/` (the jukebox; `?video=<id>` opens a video)
 
 To update it, repeat the steps (the branch only ever holds the latest build); to take it down,
 disable Pages in the same settings page.
@@ -71,16 +70,17 @@ repository where the site is published.
 ```bash
 SITE=https://honokahk.github.io/SpaceAppChallenge2026
 # Pages are served and relative assets resolve under the subfolder
-curl -sI "$SITE/jukebox.html" | head -1
-curl -sI "$SITE/data/jukebox/ecco2.json" | grep -i content-type          # application/json
+curl -sI "$SITE/index.html" | head -1
+curl -sI "$SITE/data/jukebox/catalog.json" | grep -i content-type        # application/json
 # Range requests (the video element and seeking depend on them): expect 206 and Content-Range
 curl -sI -H "Range: bytes=0-1023" "$SITE/media/jukebox/ecco2.mp4" | grep -iE "^HTTP|content-range|content-type"
 curl -sI "$SITE/media/jukebox/ecco2_temperatura.m4a" | grep -i content-type   # audio/mp4 (or audio/x-m4a)
 ```
 
-In a browser, on the published `jukebox.html`:
+In a browser, on the published page:
 
-1. It opens in English; *Español* switches the page and `?lang=es` opens it in Spanish.
+1. It opens in English; *Español* switches the page and `?lang=es` opens it in Spanish. The
+   *Video* picker lists every video of the catalog; `?video=<id>` opens one directly.
 2. Play, jump with the slider, the piano roll and a chart: the video stays in sync (the *Audio–video
    sync (diagnostics)* panel shows the drift).
 3. With DevTools network throttling, jump to a part that is not downloaded yet: the music waits and
@@ -89,7 +89,6 @@ In a browser, on the published `jukebox.html`:
 
 ## Known limits
 
-- The first visit downloads about 14 MB for the jukebox (video + four stems); the audio must be fully
-  decoded before playback starts.
+- Each video downloads about 5–15 MB (video + four stems); the audio must be fully decoded before
+  playback starts. Changing video reloads the page.
 - GitHub Pages does not let us set cache headers; files have content hashes only under `assets/`.
-- The Climate Spiral page (`index.html`) is in Spanish only.

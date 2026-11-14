@@ -13,7 +13,7 @@ import {
   videoTarget,
 } from "./clock.js";
 import { barBeat, formatTime, frameAt, modelDate } from "./format.js";
-import { assetUrl, checkManifest, isRelative, STEM_IDS } from "./manifest.js";
+import { assetUrl, checkCatalog, checkManifest, isRelative, pickVideo, ROLES, videoHref } from "./manifest.js";
 
 const PUBLIC = fileURLToPath(new URL("../../public/", import.meta.url));
 const IDS = ["a", "b", "c", "d"];
@@ -118,34 +118,80 @@ test("rutas relativas a la página, también en una subcarpeta de GitHub Pages",
     assert.equal(isRelative(bad), false, bad);
   }
   assert.equal(
-    assetUrl("media/jukebox/ecco2.mp4", "https://user.github.io/SpaceAppChallenge2026/jukebox.html"),
+    assetUrl("media/jukebox/ecco2.mp4", "https://user.github.io/SpaceAppChallenge2026/index.html"),
     "https://user.github.io/SpaceAppChallenge2026/media/jukebox/ecco2.mp4",
   );
 });
 
-test("el manifiesto publicado es válido y sus archivos existen", (t) => {
-  const path = `${PUBLIC}data/jukebox/ecco2.json`;
-  if (!existsSync(path)) return t.skip("sin activos generados (python video_jukebox/build_web.py)");
-  const m = JSON.parse(readFileSync(path, "utf8"));
-  assert.deepEqual(checkManifest(m), []);
-  assert.deepEqual(m.audio.stems.map((s) => s.id), STEM_IDS);
-  for (const src of [m.video.src, m.timeline.src, ...m.audio.stems.map((s) => s.src)]) {
-    assert.ok(existsSync(PUBLIC + src), src);
+test("el catálogo y los manifiestos publicados son válidos y sus archivos existen", (t) => {
+  const path = `${PUBLIC}data/jukebox/catalog.json`;
+  if (!existsSync(path)) return t.skip("sin activos generados (python video_jukebox/jukebox.py build --all)");
+  const catalog = JSON.parse(readFileSync(path, "utf8"));
+  assert.deepEqual(checkCatalog(catalog), []);
+  for (const v of catalog.videos) {
+    const m = JSON.parse(readFileSync(PUBLIC + v.manifest, "utf8"));
+    assert.deepEqual(checkManifest(m), [], v.id);
+    assert.equal(m.id, v.id);
+    assert.deepEqual([...m.audio.stems.map((s) => s.role)].sort(), [...ROLES].sort());
+    for (const src of [m.video.src, m.timeline.src, ...m.audio.stems.map((s) => s.src)]) {
+      assert.ok(existsSync(PUBLIC + src), src);
+    }
+    assert.ok(m.audio.duration_s >= m.timeline.music_duration_s);
+    assert.match(m.notice, /No está respaldado por NASA/);
   }
-  assert.ok(m.audio.duration_s >= m.timeline.music_duration_s);
-  assert.match(m.notice, /No está respaldado por NASA/);
 });
 
-test("checkManifest detecta rutas absolutas y pistas que faltan", () => {
-  const m = {
-    schema: "earth-jukebox-web",
-    version: 1,
+const manifestWith = (over = {}) => ({
+  schema: "earth-jukebox-web",
+  version: 2,
+  video: { src: "v.mp4", fps: 30, frames: 10 },
+  timeline: { src: "t.json" },
+  audio: {
+    samples: 1,
+    sample_rate: 44100,
+    stems: ROLES.map((role, i) => ({ id: `p${i}`, role, src: `p${i}.m4a` })),
+  },
+  credits: [{ url: "https://svs.gsfc.nasa.gov/3912/" }],
+  texts: { en: { title: "A" }, es: { title: "B" } },
+  ...over,
+});
+
+test("checkManifest acepta cualquier vídeo con cuatro pistas, una por papel", () => {
+  assert.deepEqual(checkManifest(manifestWith()), []);
+});
+
+test("checkManifest detecta rutas absolutas, pistas que faltan, créditos y textos", () => {
+  const m = manifestWith({
     video: { src: "/abs.mp4", fps: 30, frames: 10 },
-    timeline: { src: "t.json" },
-    audio: { samples: 1, sample_rate: 44100, stems: [{ id: "temperatura", src: "a.m4a" }] },
-    credits: [{ url: "https://svs.gsfc.nasa.gov/3912/" }],
-  };
+    audio: { samples: 1, sample_rate: 44100, stems: [{ id: "temperatura", role: "pad", src: "a.m4a" }] },
+    credits: [{ url: "https://example.com" }],
+    texts: { en: { title: "A" } },
+  });
   const errors = checkManifest(m);
   assert.ok(errors.some((e) => e.code === "path" && e.src === "/abs.mp4"));
   assert.ok(errors.some((e) => e.code === "stems" && e.ids === "temperatura"));
+  assert.ok(errors.some((e) => e.code === "credits"));
+  assert.ok(errors.some((e) => e.code === "texts"));
+  assert.ok(!checkManifest(manifestWith({ test: true, credits: [] })).some((e) => e.code === "credits"),
+    "un vídeo de prueba no necesita créditos de NASA");
+});
+
+test("catálogo: válido, vacío o con entradas rotas", () => {
+  const ok = { schema: "earth-jukebox-catalog", videos: [{ id: "a", manifest: "data/jukebox/a.json" }] };
+  assert.deepEqual(checkCatalog(ok), []);
+  assert.deepEqual(checkCatalog({ schema: "x" }), [{ code: "schema", value: "x" }]);
+  assert.deepEqual(checkCatalog({ schema: "earth-jukebox-catalog", videos: [] }), [{ code: "empty" }]);
+  assert.deepEqual(checkCatalog({ schema: "earth-jukebox-catalog", videos: [{ id: "b", manifest: "/b.json" }] }),
+    [{ code: "entry", id: "b" }]);
+});
+
+test("elegir vídeo: ?video=id, si no existe el primero; y cambiar conserva ?lang", () => {
+  const catalog = { videos: [{ id: "ecco2" }, { id: "luces" }] };
+  assert.equal(pickVideo(catalog, "?video=luces").id, "luces");
+  assert.equal(pickVideo(catalog, "?video=nada").id, "ecco2");
+  assert.equal(pickVideo(catalog, "").id, "ecco2");
+  assert.equal(
+    videoHref("https://u.github.io/SpaceAppChallenge2026/?lang=es&video=ecco2", "luces"),
+    "https://u.github.io/SpaceAppChallenge2026/?lang=es&video=luces",
+  );
 });

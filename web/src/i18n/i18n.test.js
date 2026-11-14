@@ -23,7 +23,6 @@ import { problemsText } from "../jukebox/texts.js";
 const SRC = fileURLToPath(new URL("../", import.meta.url));
 const WEB = fileURLToPath(new URL("../../", import.meta.url));
 const PUBLIC = `${WEB}public/`;
-const HAVE_ASSETS = existsSync(`${PUBLIC}data/jukebox/ecco2.json`);
 const readJson = (p) => JSON.parse(readFileSync(PUBLIC + p, "utf8"));
 
 const en = flatten(DICTIONARIES.en);
@@ -56,7 +55,7 @@ test("las claves que usan el código y el HTML existen en los dos idiomas", () =
   const literal = new RegExp(`["'\`]((?:${roots})\\.[\\w.]+)["'\`]`, "g");
   const used = new Set();
   for (const file of JUKEBOX_SOURCES) for (const m of readFileSync(file, "utf8").matchAll(literal)) used.add(m[1]);
-  const html = readFileSync(`${WEB}jukebox.html`, "utf8");
+  const html = readFileSync(`${WEB}index.html`, "utf8");
   for (const m of html.matchAll(/data-i18n(?:-html)?="([\w.]+)"/g)) used.add(m[1]);
   for (const m of html.matchAll(/data-i18n-attr="([^"]+)"/g)) for (const pair of m[1].split(";")) used.add(pair.split(":")[1].trim());
   assert.ok(used.size > 60, `solo ${used.size} claves encontradas`);
@@ -67,7 +66,7 @@ test("las claves que usan el código y el HTML existen en los dos idiomas", () =
 });
 
 test("el HTML empieza en inglés y tiene el selector English / Español", () => {
-  const html = readFileSync(`${WEB}jukebox.html`, "utf8");
+  const html = readFileSync(`${WEB}index.html`, "utf8");
   assert.match(html, /<html lang="en">/);
   assert.match(html, /data-lang="en"[^>]*>English</);
   assert.match(html, /data-lang="es"[^>]*>Español</);
@@ -89,56 +88,86 @@ test("los componentes no llevan textos en español escritos a mano", () => {
   }
 });
 
-test("los textos de los datos: en español, los originales del pipeline; en inglés, todos traducidos", (t) => {
-  if (!HAVE_ASSETS) return t.skip("sin activos generados");
-  const manifest = readJson("data/jukebox/ecco2.json");
-  const timeline = readJson(manifest.timeline.src);
-  const fields = [
-    ["data.title", manifest.title],
-    ["data.notice", manifest.notice],
-    ["data.disclaimer", manifest.disclaimer],
-    ["data.disclaimer", timeline.disclaimer],
-    ...manifest.audio.stems.map((s) => [`data.stems.${s.id}.label`, s.label]),
-    ...manifest.credits.flatMap((c, i) =>
-      ["role", "text", "detail"].filter((f) => c[f]).map((f) => [`data.credits.${i}.${f}`, c[f]]),
-    ),
-    ...Object.entries(timeline.features.metrics).flatMap(([id, m]) =>
-      ["label", "unit", "derived_from", "caveat"].map((f) => [`data.metrics.${id}.${f}`, m[f]]),
-    ),
-  ];
-  for (const [key, original] of fields) {
-    assert.equal(es[key], original, `es ${key} debe ser el texto de los datos`);
-    assert.ok(en[key], `falta en inglés: ${key}`);
+// Cada vídeo del catálogo trae sus textos en su manifiesto (texts.en / texts.es).
+const CATALOG_PATH = `${PUBLIC}data/jukebox/catalog.json`;
+const videos = () => (existsSync(CATALOG_PATH) ? readJson("data/jukebox/catalog.json").videos : []);
+
+test("cada vídeo trae sus textos en los dos idiomas, completos y con las mismas claves", (t) => {
+  if (!videos().length) return t.skip("sin activos generados");
+  for (const v of videos()) {
+    const manifest = readJson(v.manifest);
+    const timeline = readJson(manifest.timeline.src);
+    const ten = flatten(manifest.texts.en);
+    const tes = flatten(manifest.texts.es);
+    assert.deepEqual(Object.keys(tes).sort(), Object.keys(ten).sort(), `${v.id}: claves en/es`);
+    const needed = [
+      "title", "notice", "disclaimer",
+      ...manifest.audio.stems.map((s) => `stems.${s.id}.label`),
+      ...manifest.credits.flatMap((c, i) => ["role", "text"].map((f) => `credits.${i}.${f}`)),
+      ...Object.keys(timeline.features.metrics).flatMap((id) =>
+        ["label", "unit", "derived_from", "caveat"].map((f) => `metrics.${id}.${f}`),
+      ),
+      ...Object.entries({ acordes: timeline.mapping.harmony, ...Object.fromEntries(
+        Object.entries(timeline.mapping.tracks).map(([id, tr]) => [id, tr.uses])) })
+        .flatMap(([owner, uses]) => uses.map((u) => `effects.${owner}.${u.metric}`)),
+    ];
+    for (const key of needed) {
+      assert.ok(ten[key]?.trim(), `${v.id}: falta en inglés ${key}`);
+      assert.ok(tes[key]?.trim(), `${v.id}: falta en español ${key}`);
+    }
+    // Los campos sueltos del manifiesto (por si falla la traducción) son los textos en español.
+    assert.equal(manifest.title, tes.title);
+    assert.equal(manifest.notice, tes.notice);
+    for (const s of manifest.audio.stems) assert.equal(s.label, tes[`stems.${s.id}.label`]);
+    assert.equal(v.title.en, ten.title);
+    assert.equal(v.title.es, tes.title);
+    for (const r of timeline.regions) assert.ok(en[`regions.names.${r.id}`] && es[`regions.names.${r.id}`], r.id);
   }
-  for (const r of timeline.regions) assert.ok(en[`regions.names.${r.id}`] && es[`regions.names.${r.id}`], r.id);
 });
 
-test("las unidades y nombres propios no se traducen", () => {
-  for (const id of ["speed", "u", "v"]) assert.equal(en[`data.metrics.${id}.unit`], "px/frame");
-  assert.equal(en["data.metrics.vort.unit"], "1/frame");
-  assert.equal(en["data.metrics.temp.unit"], "index 0..1");
-  for (const key of ["data.title", "data.notice", "header.intro", "player.caption"]) {
-    assert.match(en[key], /NASA|ECCO2/, key);
-  }
+test("addData: los textos del vídeo quedan bajo data. y se sustituyen al cambiar de vídeo", () => {
+  const i18n = createI18n({ lang: "es" });
+  i18n.addData({ en: { title: "Ocean" }, es: { title: "Océano" } });
+  assert.equal(i18n.data("data.title", "x"), "Océano");
+  i18n.setLang("en");
+  assert.equal(i18n.data("data.title", "x"), "Ocean");
+  i18n.addData({ en: { intro: "Lights" }, es: {} });
+  assert.equal(i18n.data("data.title", "x"), "x", "no quedan textos del vídeo anterior");
+  i18n.setLang("es");
+  assert.equal(i18n.data("data.intro", "x"), "Lights", "si falta en español, inglés");
+  assert.equal(lookup(DICTIONARIES.es, "data.title"), undefined, "no toca los diccionarios del módulo");
+});
+
+test("las unidades y nombres propios no se traducen", (t) => {
   assert.match(en["mixer.dx7"], /DX7/);
   assert.match(es["mixer.dx7"], /DX7/);
+  assert.match(en["header.intro"], /NASA/);
+  assert.match(es["header.intro"], /NASA/);
+  const ecco2 = videos().find((v) => v.id === "ecco2");
+  if (!ecco2) return t.skip("sin el vídeo ECCO2 publicado");
+  const m = readJson(ecco2.manifest);
+  for (const id of ["speed", "u", "v"]) assert.equal(m.texts.en.metrics[id].unit, "px/frame");
+  assert.equal(m.texts.en.metrics.vort.unit, "1/frame");
+  assert.equal(m.texts.en.metrics.temp.unit, "index 0..1");
+  for (const key of ["title", "notice", "caption"]) assert.match(m.texts.en[key], /NASA|ECCO2/, key);
 });
 
 test("avisos científicos precisos en los dos idiomas", () => {
   assert.match(en["regions.warning"], /uncalibrated visual proxies/);
   assert.match(en["regions.warning"], /optical flow/);
   assert.match(en["regions.proxy"], /Visual proxy · uncalibrated/);
-  assert.match(en["data.disclaimer"], /visual proxies/);
-  assert.match(en["data.disclaimer"], /not calibrated physical measurements/);
-  assert.match(en["data.metrics.speed.label"], /Apparent motion/);
-  assert.match(en["data.metrics.vort.label"], /Apparent turbulence/);
   assert.match(en["what.body"], /visual indices/);
   assert.match(es["regions.warning"], /proxies visuales sin calibrar/);
   assert.match(es["regions.warning"], /flujo óptico/);
   assert.match(es["regions.proxy"], /Proxy visual · sin calibrar/);
-  assert.match(es["data.metrics.speed.label"], /Movimiento aparente/);
-  for (const dict of [en, es]) {
-    for (const id of ["temp", "speed", "u", "v", "vort", "cover"]) assert.ok(dict[`data.metrics.${id}.caveat`], id);
+  for (const v of videos()) {
+    const m = readJson(v.manifest);
+    assert.match(m.texts.en.disclaimer, /visual proxies/);
+    assert.match(m.texts.en.disclaimer, /not calibrated physical measurements/);
+    assert.match(m.texts.es.disclaimer, /proxies visuales/);
+    for (const lang of ["en", "es"]) {
+      for (const [id, metric] of Object.entries(m.texts[lang].metrics)) assert.ok(metric.caveat, `${v.id} ${lang} ${id}`);
+    }
   }
 });
 
@@ -221,11 +250,12 @@ test("números, decimales y fechas según el idioma", () => {
 test("mensajes de error en inglés y en español", () => {
   const en = createI18n({ lang: "en" });
   const es = createI18n({ lang: "es" });
-  const problems = checkManifest({ schema: "earth-jukebox-web", version: 2, video: {}, audio: {}, credits: [] });
-  assert.match(problemsText(en, "manifest", problems), /unsupported version: 2/);
-  assert.match(problemsText(es, "manifest", problems), /versión no soportada: 2/);
-  assert.match(problemsText(en, "manifest", problems), /NASA SVS credits are missing/);
-  assert.match(problemsText(es, "manifest", problems), /faltan los créditos del NASA SVS/);
+  const problems = checkManifest({ schema: "earth-jukebox-web", version: 3, video: {}, audio: {}, credits: [] });
+  assert.match(problemsText(en, "manifest", problems), /unsupported version: 3/);
+  assert.match(problemsText(es, "manifest", problems), /versión no soportada: 3/);
+  assert.match(problemsText(en, "manifest", problems), /NASA credits are missing/);
+  assert.match(problemsText(es, "manifest", problems), /faltan los créditos de NASA/);
+  assert.match(problemsText(en, "manifest", problems), /texts in English and Spanish are missing/);
   const tl = checkTimeline({ schema: "x" });
   assert.equal(problemsText(en, "timeline", tl), "unknown timeline schema: x");
   assert.equal(problemsText(es, "timeline", tl), "esquema de timeline desconocido: x");

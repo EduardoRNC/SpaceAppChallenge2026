@@ -2,6 +2,13 @@
 
 Fecha: 2026-11-15. Rama: `feature/miu-timeline`.
 
+> **Registro histórico.** Esta validación se hizo antes de la limpieza del repositorio. Algunos
+> scripts que cita (`run.sh`, `fetch_ecco2.py`, `flow_experiment.py`, `compare_lossless.py`,
+> `compare_stems.py`) ya no están en la rama; siguen en la historia de git (commit `142f279`).
+> Hoy: `python jukebox.py fetch ecco2` baja el video, las fechas y la barra de color, y
+> `python jukebox.py build ecco2` hace todo el pipeline. `analyze.py` es ahora el analizador
+> `ocean_flow` (`analyzers/ocean_flow.py`), con exactamente los mismos cálculos.
+
 Todo lo que mide `analyze.py` son **índices visuales derivados de píxeles**, no mediciones
 científicas calibradas. Este documento comprueba hasta qué punto esos índices siguen lo que
 muestra la visualización y dónde se contaminan.

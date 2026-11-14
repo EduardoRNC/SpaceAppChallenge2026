@@ -1,112 +1,106 @@
-# La espiral que suena — Earth Information Jukebox
+# Earth Information Jukebox
 
 [English](README.md) · **Español**
 
-Proyecto para el reto **[The Earth Information Jukebox](https://www.spaceappschallenge.org/2026/challenges/the-earth-information-jukebox/)** de NASA Space Apps Challenge 2026.
+Proyecto para el reto **[The Earth Information Jukebox](https://www.spaceappschallenge.org/2026/challenges/the-earth-information-jukebox/)** del NASA Space Apps Challenge 2026.
 
-Convierte la visualización *NASA Climate Spiral* del Earth Information Center (EIC) en un paisaje sonoro que se genera en tiempo real. Así, el calentamiento global se puede **entender solo escuchando**.
+Convierte visualizaciones de la Tierra de NASA (videos del NASA Scientific Visualization Studio y
+del Earth Information Center) en **cuatro voces de música** que siguen lo que muestra la imagen, y
+las reproduce en una página web con el video sincronizado, mute/solo por pista, un piano roll y
+gráficas de lo que se mide en cada franja de latitud.
 
-## Frase guía
+El primer video publicado es el de corrientes y temperatura del océano del modelo ECCO2
+([SVS 3912](https://svs.gsfc.nasa.gov/3912/)). El pipeline está hecho para **varios videos**: cada uno
+se describe con un archivo pequeño, lo analiza el analizador de su tipo de visualización y aparece
+en el selector de videos de la web.
 
-> Una persona ciega o con baja visión debería poder entender, solo escuchando, que la Tierra se ha calentado más de 1.3 °C desde 1880 y que el calentamiento se aceleró a partir de los años 80.
+## Cómo funciona
 
-Cada decisión de diseño se evalúa contra esta frase.
+```
+video NASA ──► analizador ──► medidas por frame ──► compositor ──► 4 pistas (MIDI + audio FM)
+(SVS / EIC)    (por tipo)     y franja de latitud    (armonía          │
+                                                       común)          └──► web: video + música
+```
 
-## Datos NASA
+1. **Analizador (por tipo de video).** Divide el mapa equirectangular en 5 franjas de latitud
+   (ártico, latitudes medias norte, trópicos, latitudes medias sur, antártico) y mide cada franja en
+   cada frame:
 
-| Pieza | Fuente |
-|---|---|
-| Visualización EIC | [SVS 5190 — NASA Climate Spiral 1880–Present](https://svs.gsfc.nasa.gov/5190/), del NASA Scientific Visualization Studio |
-| Datos numéricos | [GISTEMP v4 — Land-Ocean Global Means](https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv), de NASA GISS. Anomalía mensual en °C respecto a 1951–1980, desde 1880 |
+   | Analizador | Para | Medidas |
+   |---|---|---|
+   | `ocean_flow` | líneas en movimiento coloreadas azul→rojo (corrientes ECCO2, vientos) | índice de color, movimiento aparente (flujo óptico), dirección, turbulencia |
+   | `color_map` | mapas de calor que cambian de color (anomalías de temperatura, SST, CO₂) | índice rojo-azul, índice de tono, fracción en rojo intenso, cambio de la imagen |
+   | `night_lights` | la Tierra de noche (Black Marble) | brillo, fracción encendida, luz que aparece |
 
-La página de la visualización enlaza este mismo CSV, así que **lo que se ve y lo que se oye salen de los mismos datos**.
+2. **Compositor.** Un director armónico elige los acordes a partir de los datos (valores bajos →
+   acordes oscuros, altos → brillantes) y todas las voces tocan solo notas del acorde vigente, así
+   el resultado siempre suena armónico. Cuatro papeles, uno por pista: **pad** (acordes, volumen),
+   **voces** (una por franja; norte = agudo, sur = grave), **acentos** (una campana en cada pico) y
+   **bajo** (densidad según una franja). La ficha de cada video dice qué medida mueve cada papel.
 
-### Pistas extra del jukebox
+3. **Página web.** Video y audio sincronizados (el audio es el reloj), con mute/solo, piano roll y
+   gráficas por franja, en inglés y español, usable entera con teclado y lector de pantalla.
 
-| Pista | Visualización | Datos |
-|---|---|---|
-| CO₂ atmosférico | [SVS 5119 — OCO-2 and Keeling Curve](https://svs.gsfc.nasa.gov/5119/) (último fotograma, con cursor) | [NOAA GML — CO₂ mensual de Mauna Loa](https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv), 1958–hoy |
-| Hielo marino ártico | [SVS 5395 — Annual Arctic Sea Ice Minimum Area 1979–2024](https://svs.gsfc.nasa.gov/5395/) | [NSIDC Sea Ice Index v4 (G02135)](https://noaadata.apps.nsidc.org/NOAA/G02135/north/monthly/data/), extensión mensual 1979–hoy |
+**Proxies visuales, no mediciones.** Todas las medidas salen de los píxeles del video. No son
+temperaturas en °C ni velocidades en m/s, y la página lo dice junto a cada gráfica.
 
-## Diseño del sonido (mapeo v1)
+## Cómo correrlo
 
-Regla general: **más caliente = más agudo, más brillante y más tenso**.
-
-| Dato | Sonido |
-|---|---|
-| Media 1951–1980 (anomalía 0 °C) | **Drone de referencia**: una nota fija y suave. Es el "eje" del gráfico. |
-| Anomalía mensual | **Tono**: una nota por mes, cuantizada a una escala pentatónica, en unas 3 octavas (de −0.8 a +1.6 °C). |
-| Anomalía mensual | **Brillo** del timbre (cutoff del filtro). |
-| Anomalía alta | **Tensión**: empieza en pentatónica mayor (calma). A partir de unos +0.5 °C se mezclan notas de modo menor, y desde unos +1.0 °C aparece una disonancia leve contra el drone. Los umbrales se ajustan en el test de escucha. |
-| Año | 1 año = 1 compás de 12 notas. Los 146 años duran unos 60 s, igual que el vídeo. |
-| Inicio de década | Tick percusivo suave, para orientarse. |
-| Nuevo récord anual | Earcon (campanita). |
-| Frames de la espiral | El color del segmento más reciente controla una textura ambiental. |
-
-### Modos de escucha
-- **Historia:** de 1880 a hoy, con el vídeo de la espiral sincronizado.
-- **Comparar:** la década de 1880 frente a la de 2010.
-- **Explorar:** recorrer los años con el teclado y oír el valor exacto en voz.
-
-## Accesibilidad
-
-Es un requisito de diseño, no un extra:
-- control completo con teclado;
-- leyenda sonora antes de empezar;
-- valor exacto en voz;
-- compatibilidad con lectores de pantalla;
-- descripción textual de la visualización.
-
-## Cómo ejecutarlo
-
-Requisitos: Python 3.10 o superior, Node 18 o superior y ffmpeg.
+Requisitos: Python 3.10+, Node 18+ y ffmpeg.
 
 ```bash
-# Python (preparación de datos)
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python scripts/check_env.py   # verifica el entorno
-.venv/bin/python scripts/fetch_data.py  # descarga GISTEMP a data/raw/
-.venv/bin/python scripts/prepare_video.py   # descarga la Climate Spiral y genera la versión web
-.venv/bin/python scripts/frame_features.py  # mide el color de los fotogramas + docs/validation.png
-.venv/bin/python scripts/build_tracks.py  # genera web/public/data/temperature.json
-.venv/bin/pytest                        # tests de datos y del video jukebox
 
-# Web
+cd video_jukebox
+../.venv/bin/python jukebox.py fetch ecco2      # baja el video de NASA (~250 MB, no se sube a git)
+../.venv/bin/python jukebox.py build ecco2      # lo analiza, compone y publica en web/public
+../.venv/bin/python jukebox.py list             # videos registrados y su estado
+cd ..
+.venv/bin/pytest                                 # tests del pipeline (videos sintéticos, sin descargas)
+
 cd web
 npm install
-npm run dev      # servidor local de desarrollo (/jukebox.html: demo ECCO2 con mute/solo)
-npm test         # tests del motor de sonido y del jukebox
-npm run build    # versión para publicar (web/dist)
+npm run dev      # http://localhost:5173/  (?video=<id>, ?lang=es)
+npm test
+npm run build    # sitio estático en web/dist (GitHub Pages: docs/DEPLOY_PAGES.md)
 ```
+
+### Añadir un video nuevo
+
+```bash
+cd video_jukebox
+python jukebox.py try mi_video.mp4               # qué analizador lo ve mejor
+python jukebox.py add black_marble --video mi_video.mp4 --analyzer night_lights \
+    --svs 5276 --title-en "Earth at night" --title-es "La Tierra de noche"
+python jukebox.py preview black_marble           # escucharlo: out/black_marble/preview.mp4
+python jukebox.py build black_marble             # publicarlo: aparece en el selector de la web
+```
+
+`add` escribe `video_jukebox/videos/<id>.json`: edítalo para renombrar las pistas, escribir los
+textos en los dos idiomas y elegir qué medida mueve cada pista. Detalles: [`video_jukebox/README.es.md`](video_jukebox/README.es.md).
 
 ## Estructura
 
 ```
-scripts/     preparación de datos y frames (Python)
-video_jukebox/  video de NASA -> MIDI + timeline.json para la web (ver su README.es.md)
-data/raw/    CSV originales descargados
-web/         app web (Vite + Tone.js)
-docs/        proceso creativo, decisiones y tests de escucha
+video_jukebox/            el pipeline (Python)
+  jukebox.py              orquestador: try / add / fetch / build / preview / list / remove / check
+  videos/<id>.json        una ficha por video: analizador, fuente, música, textos, créditos
+  analyzers/              un analizador por tipo de visualización
+  analyze.py compose.py export_timeline.py render_preview.py build_web.py   los pasos
+  diagnostics.py mask_check.py                                              revisión de videos nuevos
+  tests/
+web/                      la página (Vite, Web Audio API, sin dependencias en ejecución)
+  public/data/jukebox/    catalog.json + manifiesto y timeline de cada video
+  public/media/jukebox/   video web y cuatro pistas de audio de cada video
+docs/                     validación de ECCO2 y propuesta de publicación
 ```
-
-## Estado
-
-- [x] Paso 0 — Frase guía y mapeo v1
-- [x] Paso 1 — Esqueleto del repo
-- [x] Paso 2 — Pipeline de datos
-- [x] Paso 3 — Primer sonido
-- [ ] Paso 4 — Test a ciegas y ajuste
-- [x] Paso 5 — Vídeo y sincronía
-- [x] Paso 6 — Interfaz accesible y modos
-- [x] Paso 7 — Capa de frames y validación
-- [ ] Paso 8 — Pistas extra (opcional)
-- [ ] Paso 9 — Publicación
-- [ ] Paso 10 — Historia y entrega
 
 ## Créditos
 
-Visualización: NASA Scientific Visualization Studio. Datos: NASA GISS (GISTEMP Team). Este proyecto no está respaldado por NASA.
-
-Demo del jukebox (`jukebox.html`): visualización NASA/GSFC Scientific Visualization Studio,
-[SVS 3912](https://svs.gsfc.nasa.gov/3912/), con datos del modelo ECCO2 (MIT/JPL).
+Visualizaciones: NASA/Goddard Space Flight Center Scientific Visualization Studio. Video ECCO2
+([SVS 3912](https://svs.gsfc.nasa.gov/3912/)): Greg Shirah, Horace Mitchell (NASA/GSFC), Eric
+Sokolowsky (GST); ciencia: Hong Zhang (UCLA), Dimitris Menemenlis (NASA/JPL), modelo ECCO2 (MIT/JPL).
+La página de cada video muestra sus propios créditos. La música la genera este proyecto a partir de
+índices visuales del video, con un sintetizador FM de 2 operadores para el preview (no es Dexed ni un
+DX7 real). Este proyecto no está respaldado por NASA.

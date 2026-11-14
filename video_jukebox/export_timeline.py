@@ -7,8 +7,8 @@ notas MIDI de compose.py), para que una interfaz web pueda dibujar y reproducir
 ambas cosas sincronizadas.
 
 IMPORTANTE: todas las características son PROXIES VISUALES calculados a partir
-de los píxeles del video (color y flujo óptico). No son mediciones físicas
-calibradas: 'temp' no está en °C ni 'speed' en m/s. Ver METRICS.
+de los píxeles del video (color, brillo, flujo óptico). No son mediciones físicas
+calibradas. Sus textos (qué son y sus límites) los da el analizador: ver analyzers/.
 
 Tiempos
   notas            t = beat * 60 / bpm   (mismo reloj que el MIDI y el preview WAV)
@@ -30,40 +30,27 @@ import sys
 
 import numpy as np
 
-from analyze import BANDS, MIN_PIXELS
-from compose import BEATS_PER_BAR, TRACKS
+import analyzers
+from analyzers import BANDS, MIN_PIXELS
+from compose import BEATS_PER_BAR, DEFAULT_MUSIC, TRACKS, mapping_of
 
 SCHEMA = "earth-jukebox-timeline"
-VERSION = 1
+VERSION = 2
 FRAME_OFFSET = 1          # fila 0 de features = frame 1 del video
 MIN_COVER = 0.02          # cobertura media por franja por debajo de la cual se avisa
 MAX_FPS = 240.0
 
-DISCLAIMER = ("Las características son proxies visuales derivados de los píxeles del video "
-              "(color y flujo óptico). No son mediciones físicas calibradas.")
+DISCLAIMER = ("Las características son proxies visuales derivados de los píxeles del video. "
+              "No son mediciones físicas calibradas.")
 
-METRICS = {
-    "temp": dict(label="Índice de color frío-cálido", unit="índice 0..1",
-                 derived_from="tono (hue HSV) del píxel: azul = 0, rojo = 1",
-                 caveat="Posición en la paleta de colores de la visualización, no temperatura en °C."),
-    "speed": dict(label="Movimiento aparente", unit="px/frame",
-                  derived_from="magnitud media del flujo óptico (Farneback)",
-                  caveat="Depende de la resolución de análisis (--width) y del ritmo de la "
-                         "animación; no es velocidad en m/s."),
-    "u": dict(label="Movimiento aparente este-oeste", unit="px/frame",
-              derived_from="componente horizontal del flujo óptico (+ = este)",
-              caveat="En proyección equirectangular un píxel horizontal abarca menos km "
-                     "cuanto más cerca del polo."),
-    "v": dict(label="Movimiento aparente norte-sur", unit="px/frame",
-              derived_from="componente vertical del flujo óptico (+ = norte)",
-              caveat="Movimiento de las líneas dibujadas, no velocidad meridional física."),
-    "vort": dict(label="Turbulencia aparente", unit="1/frame",
-                 derived_from="valor absoluto del rotacional del flujo óptico",
-                 caveat="Indicador de remolinos en la imagen, no vorticidad física en 1/s."),
-    "cover": dict(label="Cobertura de píxeles válidos", unit="fracción 0..1",
-                  derived_from="píxeles que pasan la máscara de saturación y brillo",
-                  caveat="Fracción de píxeles coloreados, no fracción real de océano."),
-}
+def metrics_of(feat):
+    """Textos (en español) de las medidas del analizador que generó features.npz."""
+    return analyzers.metric_text(analyzers.analyzer_of(feat), "es")
+
+
+def tracks_of(ev):
+    """Pistas de events.json ({id: {ch, program, name, ...}}); los antiguos no las guardaban."""
+    return ev.get("meta", {}).get("tracks") or TRACKS
 
 
 class TimelineError(ValueError):
@@ -85,12 +72,16 @@ def missing_mask(feat):
     Con features antiguos sin 'band_pixels' se aproxima: todas las medidas a 0 exacto."""
     if "band_pixels" in feat:
         return np.rint(feat["cover"] * feat["band_pixels"][None, :]) < MIN_PIXELS
-    keys = [k for k in METRICS if k != "cover"]
+    keys = [k for k in metrics_of(feat) if k != "cover"]
     return np.all([feat[k] == 0 for k in keys], axis=0)
 
 
 def check_structure(feat, ev):
     """Comprobaciones que, si fallan, impiden exportar. Devuelve (n, fps, bpm, meta)."""
+    try:
+        METRICS = metrics_of(feat)
+    except KeyError as e:
+        raise TimelineError(str(e)) from None
     absent = [k for k in list(METRICS) + ["fps", "bands"] if k not in feat]
     if absent:
         raise TimelineError(f"features.npz sin claves: {absent}")
@@ -100,7 +91,8 @@ def check_structure(feat, ev):
     if bands != expected:
         raise TimelineError(f"regiones {bands} distintas de las esperadas {expected}")
 
-    n = feat["temp"].shape[0] if feat["temp"].ndim == 2 else 0
+    first = feat[next(iter(METRICS))]
+    n = first.shape[0] if first.ndim == 2 else 0
     for k in METRICS:
         if feat[k].shape != (n, len(bands)):
             raise TimelineError(f"'{k}' tiene forma {feat[k].shape}, se esperaba ({n}, {len(bands)})")
@@ -132,7 +124,7 @@ def check_structure(feat, ev):
     if meta.get("nbars") != nbars or len(meta.get("chords", [])) != nbars:
         raise TimelineError(f"se esperaban {nbars} compases con su acorde")
 
-    channels = {t["ch"] for t in TRACKS.values()}
+    channels = {t["ch"] for t in tracks_of(ev).values()}
     for e in ev["events"]:
         if len(e) != 5:
             raise TimelineError(f"evento mal formado: {e}")
@@ -152,7 +144,7 @@ def soft_checks(feat, ev, n, fps, bpm, meta, missing):
     fpb, nbeats = meta["fpb"], meta["nbeats"]
     music_s = nbeats * spb
 
-    nonfinite = {k: int((~np.isfinite(feat[k])).sum()) for k in METRICS}
+    nonfinite = {k: int((~np.isfinite(feat[k])).sum()) for k in metrics_of(feat)}
     for k, c in nonfinite.items():
         if c:
             warnings.append(f"'{k}' tiene {c} valores no finitos (exportados como null)")
@@ -178,7 +170,7 @@ def soft_checks(feat, ev, n, fps, bpm, meta, missing):
     if late:
         warnings.append(f"{late} notas empiezan después del final de la música ({music_s:.2f} s)")
 
-    counts = {k: sum(1 for e in ev["events"] if int(e[2]) == t["ch"]) for k, t in TRACKS.items()}
+    counts = {k: sum(1 for e in ev["events"] if int(e[2]) == t["ch"]) for k, t in tracks_of(ev).items()}
     for k, c in counts.items():
         if c == 0:
             warnings.append(f"el canal '{k}' no tiene notas")
@@ -206,7 +198,9 @@ def build_timeline(feat, ev, source=None):
     bands = [str(b) for b in feat["bands"]]
     spb = 60.0 / bpm
     lat = {b[0]: (b[1], b[2]) for b in BANDS}
-    ch_track = {t["ch"]: k for k, t in TRACKS.items()}
+    tracks = tracks_of(ev)
+    ch_track = {t["ch"]: k for k, t in tracks.items()}
+    METRICS = metrics_of(feat)
 
     metrics = {}
     for k in METRICS:
@@ -227,6 +221,7 @@ def build_timeline(feat, ev, source=None):
 
     return dict(
         schema=SCHEMA, version=VERSION, source=source or {}, disclaimer=DISCLAIMER,
+        analyzer=analyzers.analyzer_of(feat).NAME,
         timing=dict(
             fps=fps, frames=n, frame_offset=FRAME_OFFSET,
             video_duration_s=round((n + FRAME_OFFSET) / fps, 6),
@@ -236,8 +231,10 @@ def build_timeline(feat, ev, source=None):
         ),
         regions=[dict(id=name, index=b, lat_north=lat[name][0], lat_south=lat[name][1])
                  for b, name in enumerate(bands)],
-        channels=[dict(id=k, midi_channel=t["ch"], program=t["program"], name=t["name"])
-                  for k, t in TRACKS.items()],
+        channels=[dict(id=k, midi_channel=t["ch"], program=t["program"], name=t["name"],
+                       role=t.get("role"))
+                  for k, t in tracks.items()],
+        mapping=meta.get("mapping") or mapping_of(DEFAULT_MUSIC),
         features=dict(t=[round((i + FRAME_OFFSET) / fps, 6) for i in range(n)], metrics=metrics),
         chords=chords, notes=notes, cc=cc,
         validation=dict(status="warnings" if warnings else "ok", warnings=warnings, checks=checks),

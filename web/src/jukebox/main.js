@@ -1,5 +1,6 @@
-// Demo del video jukebox: el vídeo ECCO2 del NASA SVS con sus cuatro pistas FM.
+// Earth Information Jukebox: un vídeo de NASA (del catálogo) con sus cuatro pistas FM.
 // Reproducción sincronizada, mute/solo, piano roll, gráficas por región; en inglés o español.
+// Todo lo que depende del vídeo (título, pistas, medidas, textos) viene de su manifiesto.
 
 import { createTransport } from "./transport.js";
 import { createFollower } from "./follower.js";
@@ -10,14 +11,13 @@ import { shortcutFor } from "./keys.js";
 import { videoTarget } from "./clock.js";
 import { gains, initialStates, reset, toggle } from "./mix.js";
 import { barBeat, DATE_OPTIONS, formatTime, frameAt, modelDate } from "./format.js";
-import { assetUrl, checkManifest } from "./manifest.js";
+import { assetUrl, CATALOG, checkCatalog, checkManifest, pickVideo, videoHref } from "./manifest.js";
 import { checkTimeline, chordAt, noteName, soundingAt } from "./timeline.js";
 import { createPianoRoll } from "./pianoroll.js";
 import { createRegionCharts, renderMappingList } from "./regions.js";
 import { dx7Patch, problemsText, stemLabel } from "./texts.js";
 import { createI18n, initialLang, safeStorage, translateDom } from "../i18n/index.js";
 
-const MANIFEST = "data/jukebox/ecco2.json";
 // Altavoz: con ondas mientras suena, tachado cuando la pista está silenciada (lo elige el CSS).
 const SPEAKER_ICON = `<svg class="jb-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
   <path class="jb-speaker" d="M4 9h4l5-4v14l-5-4H4z" />
@@ -25,6 +25,7 @@ const SPEAKER_ICON = `<svg class="jb-icon" viewBox="0 0 24 24" aria-hidden="true
   <path class="jb-cross" d="M16 9l6 6M22 9l-6 6" />
 </svg>`;
 const STEP_S = 5;
+const AAC_SLACK = 1024;
 const SEEK_TIMEOUT_MS = 2000;
 const RELOAD_TIMEOUT_MS = 15000;
 
@@ -39,6 +40,10 @@ const { t } = i18n;
 const $ = (id) => document.getElementById(id);
 const el = {
   title: $("jb-title"),
+  picker: $("jb-picker"),
+  intro: $("jb-intro"),
+  test: $("jb-test"),
+  proxyNote: $("jb-proxy-note"),
   video: $("jb-video"),
   caption: $("jb-caption"),
   play: $("jb-play"),
@@ -65,7 +70,7 @@ const el = {
   debug: $("jb-debug-values"),
 };
 
-let manifest, timeline, transport, follower, player, watchdog, roll, regions, states;
+let catalog, current, manifest, timeline, transport, follower, player, watchdog, roll, regions, states;
 let scrubbing = null;
 let decoded = null;
 let nowText = "";
@@ -404,16 +409,48 @@ function applyLanguage() {
   el.status.textContent = status();
   renderNotice();
   if (!transport) el.time.textContent = `${time(0)} / ${time(manifest?.audio.duration_s ?? 0)}`;
+  relabelPicker();
   if (!manifest) return;
-  el.title.textContent = i18n.data("data.title", manifest.title);
+  const title = i18n.data("data.title", manifest.title);
+  document.title = `${title} — ${t("page.title")}`;
+  el.title.textContent = title;
+  el.intro.textContent = i18n.data("data.intro", "");
+  el.caption.textContent = i18n.data("data.caption", "");
+  el.proxyNote.textContent = i18n.data("data.proxy_note", "");
+  el.test.hidden = !manifest.test;
   renderCredits();
   if (!states) return;
   relabelStems();
   updateMixButtons();
   regions.relabel();
   syncSliders();
-  renderMappingList(el.mapping, manifest.audio.stems, timeline.features.metrics, i18n);
+  renderMappingList(el.mapping, manifest.audio.stems, timeline.features.metrics, timeline.mapping, i18n);
   nowText = "";
+}
+
+/** Selector de vídeo: una opción por vídeo del catálogo, en el idioma activo. */
+function buildPicker() {
+  el.picker.replaceChildren(
+    ...catalog.videos.map((v) => {
+      const option = document.createElement("option");
+      option.value = v.id;
+      option.selected = v.id === current.id;
+      return option;
+    }),
+  );
+  relabelPicker();
+  el.picker.disabled = catalog.videos.length < 2;
+  // Cambiar de vídeo recarga la página con ?video=: así no queda nada del anterior sonando.
+  el.picker.addEventListener("change", () => location.assign(videoHref(location.href, el.picker.value)));
+}
+
+function relabelPicker() {
+  if (!catalog) return;
+  for (const option of el.picker.options) {
+    const v = catalog.videos.find((x) => x.id === option.value);
+    const title = v.title?.[i18n.lang] ?? v.title?.en ?? v.id;
+    option.textContent = v.test ? t("header.test", { title }) : title;
+  }
 }
 
 function bindLanguage() {
@@ -436,9 +473,20 @@ async function init() {
   });
   try {
     const base = document.baseURI;
-    manifest = await (await fetch(assetUrl(MANIFEST, base))).json();
+    const catalogRes = await fetch(assetUrl(CATALOG, base));
+    if (!catalogRes.ok) throw new UiError(() => t("errors.fetch", { url: CATALOG, status: catalogRes.status }));
+    catalog = await catalogRes.json();
+    const catalogProblems = checkCatalog(catalog);
+    if (catalogProblems.length) throw new UiError(() => t("errors.catalog", { problems: problemsText(i18n, "catalog", catalogProblems) }));
+    current = pickVideo(catalog, location.search);
+    buildPicker();
+
+    const manifestRes = await fetch(assetUrl(current.manifest, base));
+    if (!manifestRes.ok) throw new UiError(() => t("errors.fetch", { url: current.manifest, status: manifestRes.status }));
+    manifest = await manifestRes.json();
     const problems = checkManifest(manifest);
     if (problems.length) throw new UiError(() => t("errors.manifest", { problems: problemsText(i18n, "manifest", problems) }));
+    i18n.addData(manifest.texts);
     delete el.title.dataset.i18n;
     applyLanguage();
 
@@ -467,7 +515,9 @@ async function init() {
         return { id: s.id, buffer };
       }),
     );
-    const short = stems.filter((s) => s.buffer.length < manifest.audio.samples);
+    // Algunos navegadores recortan unas decenas de muestras al decodificar AAC (relleno del
+    // códec): menos de un bloque AAC (1024 muestras, ~23 ms) no se nota y no es un error.
+    const short = stems.filter((s) => s.buffer.length < manifest.audio.samples - AAC_SLACK);
     if (short.length) throw new UiError(() => t("errors.shortStems", { ids: short.map((s) => s.id).join(", ") }));
     const lengths = [...new Set(stems.map((s) => s.buffer.length))];
     decoded = { lengths: lengths.join(" / "), expected: manifest.audio.samples, rate: ctx.sampleRate };
@@ -520,7 +570,7 @@ async function init() {
       onSeek: (pos) => player.jump(pos),
     });
     for (const s of document.querySelectorAll(".jb-regions, .jb-map")) s.hidden = false;
-    Object.assign(window.jukeboxDebug, { manifest, timeline, transport, follower, player, watchdog, roll, regions, ctx, stems, getStates: () => states });
+    Object.assign(window.jukeboxDebug, { catalog, manifest, timeline, transport, follower, player, watchdog, roll, regions, ctx, stems, getStates: () => states });
 
     buildStemRows();
     states = initialStates(manifest.audio.stems.map((s) => s.id));

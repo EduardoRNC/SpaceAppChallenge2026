@@ -3,8 +3,6 @@
 // Todo en segundos: las notas siguen el reloj del audio (t = beat × 60 / bpm) y las
 // características el del vídeo (features.t[i] = (i + frame_offset) / fps).
 
-import { STEM_IDS } from "./manifest.js";
-
 export const TIMELINE_SCHEMA = "earth-jukebox-timeline";
 const NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
 
@@ -15,9 +13,11 @@ const NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A"
 export function checkTimeline(t, manifest) {
   if (t?.schema !== TIMELINE_SCHEMA) return [{ code: "schema", value: String(t?.schema) }];
   const errors = [];
-  if (t.version !== 1) errors.push({ code: "version", value: String(t.version) });
+  if (t.version !== 2) errors.push({ code: "version", value: String(t.version) });
   const ids = (t.channels ?? []).map((c) => c.id);
-  if (ids.join() !== STEM_IDS.join()) errors.push({ code: "channels", ids: ids.join(", ") });
+  const expected = manifest ? manifest.audio.stems.map((s) => s.id) : ids;
+  if (!ids.length || ids.join() !== expected.join()) errors.push({ code: "channels", ids: ids.join(", ") });
+  if (!t.mapping?.harmony || ids.some((id) => !t.mapping.tracks?.[id])) errors.push({ code: "mapping" });
   if (!Array.isArray(t.notes) || !t.notes.length) errors.push({ code: "notes" });
   else if (t.notes.some((n) => !ids.includes(n.track))) errors.push({ code: "noteTrack" });
   const timing = t.timing ?? {};

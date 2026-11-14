@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const WEB = fileURLToPath(new URL("../../", import.meta.url));
-const html = readFileSync(`${WEB}jukebox.html`, "utf8");
+const html = readFileSync(`${WEB}index.html`, "utf8");
 const css = readFileSync(`${WEB}src/style.css`, "utf8");
 const main = readFileSync(`${WEB}src/jukebox/main.js`, "utf8");
 const regions = readFileSync(`${WEB}src/jukebox/regions.js`, "utf8");

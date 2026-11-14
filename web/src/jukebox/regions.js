@@ -5,7 +5,7 @@
 // Los textos salen de i18n; relabel() los cambia de idioma sin rehacer los controles.
 
 import { frameIndex, seriesPath, seriesRange } from "./timeline.js";
-import { effectKey, formatValue, HARMONY, latitudeText, METRIC_ORDER, regionsText, TRACK_MAPPINGS, usesOf } from "./mappings.js";
+import { effectKey, formatValue, HARMONY_ID, latitudeText, regionsText, usesOf } from "./mappings.js";
 import { dx7Patch, metricText, stemLabel } from "./texts.js";
 import { chartKeyTarget } from "./nav.js";
 
@@ -20,7 +20,7 @@ const svgEl = (tag, attrs = {}) => {
 };
 
 /** Lista "qué controla cada instrumento": una entrada por pista más los acordes. */
-export function renderMappingList(list, stems, metrics, i18n) {
+export function renderMappingList(list, stems, metrics, mapping, i18n) {
   const { t } = i18n;
   const entry = (owner, title, detail, color, uses) => {
     const li = document.createElement("li");
@@ -35,16 +35,16 @@ export function renderMappingList(list, stems, metrics, i18n) {
       item.innerHTML = "<em></em> <span></span>";
       const metric = metrics[u.metric] ? metricText(i18n, u.metric, metrics[u.metric], "label") : u.metric;
       item.querySelector("em").textContent = t("map.use", { metric, regions: regionsText(u, t) });
-      item.querySelector("span").textContent = t("map.effect", { effect: t(effectKey(owner, u.metric)) });
+      item.querySelector("span").textContent = t("map.effect", { effect: i18n.data(effectKey(owner, u.metric), u.metric) });
       ul.append(item);
     }
     li.append(head, ul);
     return li;
   };
   list.replaceChildren(
-    entry(HARMONY.id, t("map.harmony"), t("map.harmonyDetail"), "var(--accent)", HARMONY.uses),
+    entry(HARMONY_ID, t("map.harmony"), t("map.harmonyDetail"), "var(--accent)", mapping.harmony),
     ...stems.map((s) =>
-      entry(s.id, stemLabel(i18n, s), t("mixer.dx7", { patch: dx7Patch(s) }), s.color, TRACK_MAPPINGS[s.id] ?? []),
+      entry(s.id, stemLabel(i18n, s), t("mixer.dx7", { patch: dx7Patch(s) }), s.color, mapping.tracks[s.id]?.uses ?? []),
     ),
   );
 }
@@ -59,7 +59,8 @@ export function createRegionCharts({ picker, container, timeline, stems, i18n, t
   const domain = [0, timeline.timing.video_duration_s];
   const clampT = (s) => Math.min(Math.max(s, domain[0]), domain[1]);
   const stemById = Object.fromEntries(stems.map((s) => [s.id, s]));
-  const ids = METRIC_ORDER.filter((m) => metrics[m]);
+  const ids = Object.keys(metrics); // en el orden del analizador
+  const { mapping } = timeline;
   let region = timeline.regions.some((r) => r.id === initial) ? initial : timeline.regions[0].id;
   let lastIndex = -1;
   let lastT = 0;
@@ -130,12 +131,12 @@ export function createRegionCharts({ picker, container, timeline, stems, i18n, t
 
   const label = (c) => metricText(i18n, c.id, c.m, "label");
   const unit = (c) => metricText(i18n, c.id, c.m, "unit");
-  const who = (id) => (id === HARMONY.id ? t("regions.chords") : stemById[id] ? stemLabel(i18n, stemById[id]) : id);
+  const who = (id) => (id === HARMONY_ID ? t("regions.chords") : stemById[id] ? stemLabel(i18n, stemById[id]) : id);
 
   function usesText(id) {
-    const uses = usesOf(id, region);
+    const uses = usesOf(mapping, id, region);
     if (!uses.length) return t("regions.unused");
-    return uses.map((u) => t("regions.use", { who: who(u.id), effect: t(effectKey(u.id, u.metric)) })).join(" ");
+    return uses.map((u) => t("regions.use", { who: who(u.id), effect: i18n.data(effectKey(u.id, u.metric), u.metric) })).join(" ");
   }
 
   /** Textos que no dependen de la región. */
@@ -175,7 +176,7 @@ export function createRegionCharts({ picker, container, timeline, stems, i18n, t
           ? t("regions.chartLabel", { metric: label(c), region: name, min, max, unit: unit(c) })
           : t("regions.chartLabelEmpty", { metric: label(c), region: name }),
       );
-      const used = usesOf(c.id, region);
+      const used = usesOf(mapping, c.id, region);
       c.fig.classList.toggle("jb-unused", !used.length);
       c.uses.replaceChildren();
       for (const u of used) {

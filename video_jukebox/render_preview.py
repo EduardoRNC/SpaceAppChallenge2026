@@ -25,7 +25,7 @@ from compose import TRACKS
 SR = 44100
 HEADROOM_DB = 1.0
 
-# Patches FM simples por canal: ratio moduladora, índice, envolvente (A, D, S, R en s / nivel S)
+# Patches FM simples por canal (= papel: 0 pad, 1 voces, 2 acentos, 3 bajo): ratio moduladora, índice, envolvente (A, D, S, R en s / nivel S)
 PATCHES = {
     0: dict(ratio=1.0, index=0.8, A=0.6, D=1.0, S=0.8, R=1.2, detune=0.15, gain=0.10),  # pad cuerdas
     1: dict(ratio=1.0, index=1.2, A=0.08, D=0.3, S=0.7, R=0.25, vibrato=5.0, gain=0.16), # flauta
@@ -143,8 +143,10 @@ def render_stems(data, headroom_db=HEADROOM_DB):
     return {ch: x * gain for ch, x in stems.items()}, gain
 
 
-def stem_names():
-    return {t["ch"]: name for name, t in TRACKS.items()}
+def stem_names(data=None):
+    """Canal -> id de pista (de events.json; los antiguos no lo guardaban: ECCO2)."""
+    tracks = (data or {}).get("meta", {}).get("tracks") or TRACKS
+    return {t["ch"]: name for name, t in tracks.items()}
 
 
 def write_wav(path, audio):
@@ -158,7 +160,7 @@ def write_stems(data, out_dir, headroom_db=HEADROOM_DB):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stems, gain = render_stems(data, headroom_db)
-    names = stem_names()
+    names = stem_names(data)
     spb = 60.0 / data["meta"]["bpm"]
     info = dict(sample_rate=SR, samples=len(stems[0]), duration_s=len(stems[0]) / SR,
                 gain=gain, headroom_db=headroom_db, stems=[])

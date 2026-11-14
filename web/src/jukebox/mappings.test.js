@@ -3,35 +3,35 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { effectKey, formatValue, HARMONY, latitudeText, METRIC_ORDER, REGION_IDS, regionsText, TRACK_MAPPINGS, usesOf } from "./mappings.js";
-import { STEM_IDS } from "./manifest.js";
+import { effectKey, formatValue, HARMONY_ID, latitudeText, ownersOf, REGION_IDS, regionsText, usesOf } from "./mappings.js";
 import { createI18n } from "../i18n/index.js";
 
 const PUBLIC = fileURLToPath(new URL("../../public/", import.meta.url));
+const readJson = (p) => JSON.parse(readFileSync(PUBLIC + p, "utf8"));
 
-test("cada pista explica al menos una medida, y solo hay pistas conocidas", () => {
-  assert.deepEqual(Object.keys(TRACK_MAPPINGS), STEM_IDS);
-  for (const uses of Object.values(TRACK_MAPPINGS)) assert.ok(uses.length > 0);
-});
-
-test("las medidas y regiones de los mapeos existen en el timeline publicado", (t) => {
-  const path = `${PUBLIC}data/jukebox/ecco2_timeline.json`;
-  if (!existsSync(path)) return t.skip("sin activos generados");
-  const tl = JSON.parse(readFileSync(path, "utf8"));
-  const regions = tl.regions.map((r) => r.id);
-  assert.deepEqual(REGION_IDS, regions);
-  assert.deepEqual([...METRIC_ORDER].sort(), Object.keys(tl.features.metrics).sort());
-  for (const use of [...HARMONY.uses, ...Object.values(TRACK_MAPPINGS).flat()]) {
-    assert.ok(tl.features.metrics[use.metric], use.metric);
-    if (use.regions !== "all") for (const r of use.regions) assert.ok(regions.includes(r), r);
-  }
-});
+// La música de ECCO2, tal como la escribe compose.py en el timeline.
+const ECCO2 = {
+  harmony: [{ metric: "temp", regions: ["norte_medio", "sur_medio"], mode: "contrast" }],
+  tracks: {
+    temperatura: { role: "pad", uses: [{ metric: "temp", regions: "all" }] },
+    corrientes: {
+      role: "voices",
+      uses: [
+        { metric: "speed", regions: "all" },
+        { metric: "temp", regions: "all" },
+        { metric: "vort", regions: "all" },
+      ],
+    },
+    remolinos: { role: "accents", uses: [{ metric: "vort", regions: "all" }] },
+    ecuatorial: { role: "bass", uses: [{ metric: "u", regions: ["tropicos"], direction: -1 }] },
+  },
+};
 
 test("quién usa cada medida en cada región", () => {
-  const ids = (m, r) => usesOf(m, r).map((u) => u.id);
+  const ids = (m, r) => usesOf(ECCO2, m, r).map((u) => u.id);
   assert.deepEqual(ids("u", "tropicos"), ["ecuatorial"]);
   assert.deepEqual(ids("u", "artico"), [], "el bajo solo escucha los trópicos");
-  assert.deepEqual(ids("temp", "norte_medio"), ["acordes", "temperatura", "corrientes"]);
+  assert.deepEqual(ids("temp", "norte_medio"), [HARMONY_ID, "temperatura", "corrientes"]);
   assert.deepEqual(ids("temp", "tropicos"), ["temperatura", "corrientes"]);
   assert.deepEqual(ids("vort", "antartico"), ["corrientes", "remolinos"]);
   assert.deepEqual(ids("speed", "sur_medio"), ["corrientes"]);
@@ -41,13 +41,27 @@ test("quién usa cada medida en cada región", () => {
   }
 });
 
-test("cada efecto tiene su texto en los dos idiomas", () => {
-  for (const lang of ["en", "es"]) {
-    const i18n = createI18n({ lang });
-    for (const [id, uses] of [[HARMONY.id, HARMONY.uses], ...Object.entries(TRACK_MAPPINGS)]) {
-      for (const u of uses) assert.ok(i18n.has(effectKey(id, u.metric)), `${lang} ${id}.${u.metric}`);
+test("en cada vídeo publicado, las medidas y regiones de la música existen y cada efecto tiene texto", (t) => {
+  const path = `${PUBLIC}data/jukebox/catalog.json`;
+  if (!existsSync(path)) return t.skip("sin activos generados");
+  for (const v of readJson("data/jukebox/catalog.json").videos) {
+    const m = readJson(v.manifest);
+    const tl = readJson(m.timeline.src);
+    const regions = tl.regions.map((r) => r.id);
+    assert.deepEqual(regions, REGION_IDS);
+    assert.deepEqual(Object.keys(tl.mapping.tracks), m.audio.stems.map((s) => s.id));
+    for (const lang of ["en", "es"]) {
+      const i18n = createI18n({ lang });
+      i18n.addData(m.texts);
+      for (const [owner, uses] of ownersOf(tl.mapping)) {
+        for (const use of uses) {
+          assert.ok(tl.features.metrics[use.metric], `${v.id}: ${use.metric}`);
+          if (use.regions !== "all") for (const r of use.regions) assert.ok(regions.includes(r), r);
+          assert.ok(i18n.has(effectKey(owner, use.metric)), `${v.id} ${lang} ${owner}.${use.metric}`);
+        }
+      }
+      for (const r of REGION_IDS) assert.ok(i18n.has(`regions.names.${r}`), `${lang} ${r}`);
     }
-    for (const r of REGION_IDS) assert.ok(i18n.has(`regions.names.${r}`), `${lang} ${r}`);
   }
 });
 

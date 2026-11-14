@@ -1,21 +1,21 @@
 """
-Prepara los activos finales de la demo web del jukebox (web/jukebox.html).
+Paso final del jukebox: los activos web de UN video (los llama jukebox.py build).
 
-A partir de las salidas de run.sh (out/<nombre>_events.json y _timeline.json) y del video
-original escribe, con rutas relativas a la página (GitHub Pages):
+A partir de las salidas del pipeline (events.json y timeline.json), de la ficha del video
+(videos/<id>.json) y del video original escribe, con rutas relativas a la página:
 
-  web/public/media/jukebox/<slug>.mp4             video H.264 1280x640, sin audio, 2 pasadas
-  web/public/media/jukebox/<slug>_<pista>.m4a     4 stems FM (AAC), misma longitud y comienzo
-  web/public/data/jukebox/<slug>_timeline.json    timeline.json minificado
-  web/public/data/jukebox/<slug>.json             manifiesto: rutas, tiempos, pistas, créditos
+  web/public/media/jukebox/<id>.mp4             video H.264 de 1280 px de ancho, sin audio, 2 pasadas
+  web/public/media/jukebox/<id>_<pista>.m4a     4 stems FM (AAC), misma longitud y comienzo
+  web/public/data/jukebox/<id>_timeline.json    timeline.json minificado
+  web/public/data/jukebox/<id>.json             manifiesto: rutas, tiempos, pistas, textos, créditos
+  web/public/data/jukebox/catalog.json          la lista de videos que ofrece la web
 
 Después valida lo escrito: frames y FPS del video, longitud y desfase de los stems decodificados,
 saturación en cualquier combinación de mute/solo, tamaños, rutas y créditos.
 
-Uso (desde video_jukebox/):
-    python build_web.py --name ecco2_full --video ../data/media/ecco2/ecco2_sst_flow.mp4 \\
-        --dates ../data/media/ecco2/flat_ecco2_dates.txt
-    python build_web.py ... --check-only      # solo valida los activos existentes
+Uso directo (solo validar lo que ya está publicado):
+    python build_web.py --check-only            # todos los videos del catálogo
+    python build_web.py --check-only --id ecco2
 """
 import argparse
 import hashlib
@@ -30,41 +30,19 @@ from pathlib import Path
 
 import numpy as np
 
+import analyzers
 import render_preview as rp
-from compose import TRACKS
+import texts as tx
 
 HERE = Path(__file__).resolve().parent
 WEB = HERE.parent / "web"
 SCHEMA = "earth-jukebox-web"
-VERSION = 1
+VERSION = 2
+CATALOG = "catalog.json"
+CATALOG_SCHEMA = "earth-jukebox-catalog"
 MEDIA_DIR = "media/jukebox"
 DATA_DIR = "data/jukebox"
 BUDGET = dict(video=12_000_000, stem=1_500_000, timeline=1_000_000, total=20_000_000)
-
-STEM_STYLE = {
-    "temperatura": dict(label="Temperatura", color="#ff6b4a"),
-    "corrientes": dict(label="Corrientes", color="#4cc9f0"),
-    "remolinos": dict(label="Remolinos", color="#c77dff"),
-    "ecuatorial": dict(label="Corriente ecuatorial", color="#f4b942"),
-}
-
-CREDITS = [
-    dict(role="Visualización",
-         text="NASA/Goddard Space Flight Center Scientific Visualization Studio",
-         detail="Greg Shirah, Horace Mitchell (NASA/GSFC), Eric Sokolowsky (GST)",
-         url="https://svs.gsfc.nasa.gov/3912/"),
-    dict(role="Ciencia",
-         text="Modelo ECCO2 (MIT/JPL)",
-         detail="Hong Zhang (UCLA), Dimitris Menemenlis (NASA/JPL)",
-         url="https://ecco.jpl.nasa.gov/"),
-    dict(role="Música",
-         text="Generada por este proyecto a partir de índices visuales del video",
-         detail="Preview FM de 2 operadores (no es Dexed ni un DX7 real)",
-         url=None),
-]
-NOTICE = ("Proyecto para NASA Space Apps Challenge 2026. No está respaldado por NASA. "
-          "Visualización de dominio público del NASA SVS.")
-
 
 class BuildError(RuntimeError):
     pass
@@ -87,6 +65,14 @@ def probe(path):
     return json.loads(out)
 
 
+def range_dates(date_range, frames):
+    """Fechas del primer y último frame (ficha del video) repartidas de forma uniforme."""
+    first, last = (datetime.strptime(d, "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc) for d in date_range)
+    step = (last - first).total_seconds() / max(frames - 1, 1)
+    return dict(first=date_range[0], last=date_range[1], frames=frames, step_hours=round(step / 3600, 6),
+                max_deviation_s=0.0, source="date_range")
+
+
 def model_dates(path, frames):
     """Inicio, fin y uniformidad de las fechas del modelo (una línea por frame)."""
     dates = [datetime.strptime(line.split()[1], "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc)
@@ -104,11 +90,11 @@ def model_dates(path, frames):
                 source=Path(path).name)
 
 
-def encode_video(src, dst, kbps, size=(1280, 640)):
+def encode_video(src, dst, kbps, width=1280):
     with tempfile.TemporaryDirectory() as tmp:
         log = Path(tmp) / "x264"
         common = ["ffmpeg", "-v", "error", "-y", "-i", src, "-an",
-                  "-vf", f"scale={size[0]}:{size[1]}:flags=lanczos", "-fps_mode", "passthrough",
+                  "-vf", f"scale={width}:-2:flags=lanczos", "-fps_mode", "passthrough",
                   "-c:v", "libx264", "-preset", "slow", "-b:v", f"{kbps}k",
                   "-maxrate", f"{2 * kbps}k", "-bufsize", f"{4 * kbps}k",
                   "-profile:v", "high", "-pix_fmt", "yuv420p", "-g", "30",
@@ -149,59 +135,128 @@ def relative(path):
     return not (p.startswith("/") or "://" in p or ".." in Path(p).parts or "\\" in p)
 
 
-def build(a):
-    events = json.loads((a.out / f"{a.name}_events.json").read_text())
-    tl_path = a.out / f"{a.name}_timeline.json"
-    timeline = json.loads(tl_path.read_text())
+def build(video, events, timeline, *, video_path=None, web=WEB, dates=None, skip_video=False,
+          video_kbps=1200, audio_kbps=128):
+    """Escribe los activos web de un video y devuelve (manifiesto, informe de validación)."""
     if timeline.get("schema") != "earth-jukebox-timeline":
-        raise BuildError(f"{tl_path} no es un timeline del jukebox")
+        raise BuildError("el timeline no es del jukebox")
     if timeline["validation"]["status"] != "ok":
         print("Aviso: el timeline tiene avisos:", timeline["validation"]["warnings"], file=sys.stderr)
+    slug = video["id"]
+    tracks = events["meta"]["tracks"]
+    music = {t["id"]: t for t in video["music"]["tracks"]}
 
-    media, data = a.web / "public" / MEDIA_DIR, a.web / "public" / DATA_DIR
+    media, data = web / "public" / MEDIA_DIR, web / "public" / DATA_DIR
     media.mkdir(parents=True, exist_ok=True)
     data.mkdir(parents=True, exist_ok=True)
 
-    video = media / f"{a.slug}.mp4"
-    if a.skip_video and video.exists():
-        print(f"Video existente: {video}")
+    out_video = media / f"{slug}.mp4"
+    if skip_video and out_video.exists():
+        print(f"Video existente: {out_video}")
     else:
-        print(f"Codificando video ({a.video_kbps} kb/s, 2 pasadas)...")
-        encode_video(a.video, video, a.video_kbps)
+        if not video_path:
+            raise BuildError("falta el video original (o usa --skip-video con uno ya codificado)")
+        print(f"Codificando video ({video_kbps} kb/s, 2 pasadas)...")
+        encode_video(video_path, out_video, video_kbps)
+    vinfo = [s for s in probe(out_video)["streams"] if s["codec_type"] == "video"][0]
 
     print("Renderizando y codificando stems...")
-    stems = encode_stems(events, media, a.slug, a.audio_kbps)
+    stems = encode_stems(events, media, slug, audio_kbps)
     reference = stems.pop("reference")
 
-    tl_out = data / f"{a.slug}_timeline.json"
+    tl_out = data / f"{slug}_timeline.json"
     tl_out.write_text(json.dumps(timeline, separators=(",", ":"), allow_nan=False))
 
+    analyzer = analyzers.get(timeline["analyzer"])
+    texts, credits = tx.build_texts(video, analyzer, timeline["mapping"], list(tracks))
+    es = texts["es"]
     timing = timeline["timing"]
+    frames = timing["frames"] + timing["frame_offset"]
+    if dates:
+        model_time = model_dates(dates, frames)
+    elif video.get("source", {}).get("date_range"):
+        model_time = range_dates(video["source"]["date_range"], frames)
+    else:
+        model_time = None
     manifest = dict(
-        schema=SCHEMA, version=VERSION,
-        title="Corrientes y temperatura del océano (ECCO2)",
-        generated_by="video_jukebox/build_web.py",
-        paths_relative_to="la página (web/jukebox.html); válido con base './' en GitHub Pages",
-        video=dict(src=f"{MEDIA_DIR}/{video.name}", fps=timing["fps"],
-                   frames=timing["frames"] + timing["frame_offset"],
-                   duration_s=timing["video_duration_s"], width=1280, height=640),
+        schema=SCHEMA, version=VERSION, id=slug, analyzer=timeline["analyzer"],
+        svs=video.get("svs"), test=bool(video.get("test")),
+        title=es["title"],
+        generated_by="video_jukebox/jukebox.py build",
+        paths_relative_to="la página (web/index.html); válido con base './' en GitHub Pages",
+        video=dict(src=f"{MEDIA_DIR}/{out_video.name}", fps=timing["fps"], frames=frames,
+                   duration_s=timing["video_duration_s"],
+                   width=int(vinfo["width"]), height=int(vinfo["height"])),
         audio=dict(sample_rate=stems["sample_rate"], samples=stems["samples"],
                    duration_s=stems["duration_s"], gain=stems["gain"],
-                   headroom_db=stems["headroom_db"], codec=f"AAC {a.audio_kbps} kb/s",
-                   stems=[dict(id=s["id"], channel=s["channel"], **STEM_STYLE[s["id"]],
-                               instrument=TRACKS[s["id"]]["name"],
+                   headroom_db=stems["headroom_db"], codec=f"AAC {audio_kbps} kb/s",
+                   stems=[dict(id=s["id"], channel=s["channel"], role=tracks[s["id"]]["role"],
+                               label=es["stems"][s["id"]]["label"],
+                               color=music[s["id"]].get("color", "#cccccc"),
+                               instrument=f"{es['stems'][s['id']]['label']} - {tracks[s['id']]['patch']}",
                                src=f"{MEDIA_DIR}/{s['file']}", first_note_s=s["first_note_s"])
                           for s in stems["stems"]]),
         timeline=dict(src=f"{DATA_DIR}/{tl_out.name}", bpm=timing["bpm"],
                       music_duration_s=timing["music_duration_s"]),
-        model_time=model_dates(a.dates, timing["frames"] + timing["frame_offset"]) if a.dates else None,
-        credits=CREDITS, notice=NOTICE,
-        disclaimer=timeline["disclaimer"],
+        model_time=model_time,
+        credits=[{k: tx.pick(c.get(k), "es") for k in ("role", "text", "detail", "url")} for c in credits],
+        notice=es["notice"], disclaimer=es["disclaimer"],
+        texts=texts,
     )
-    report = validate(manifest, a.web / "public", reference)
+    report = validate(manifest, web / "public", reference)
     manifest["assets"] = report["assets"]
-    (data / f"{a.slug}.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
+    (data / f"{slug}.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
+    update_catalog(web, manifest)
     return manifest, report
+
+
+def read_catalog(web=WEB):
+    path = web / "public" / DATA_DIR / CATALOG
+    if not path.exists():
+        return dict(schema=CATALOG_SCHEMA, version=1, videos=[])
+    return json.loads(path.read_text())
+
+
+def write_catalog(catalog, web=WEB):
+    path = web / "public" / DATA_DIR / CATALOG
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(catalog, indent=2, ensure_ascii=False) + "\n")
+
+
+def update_catalog(web, manifest):
+    """Añade o actualiza el video en el catálogo de la web (mantiene el orden)."""
+    catalog = read_catalog(web)
+    entry = dict(id=manifest["id"], manifest=f"{DATA_DIR}/{manifest['id']}.json",
+                 title={lang: manifest["texts"][lang]["title"] for lang in tx.LANGS},
+                 analyzer=manifest["analyzer"], duration_s=round(manifest["audio"]["duration_s"], 2),
+                 test=bool(manifest.get("test")))
+    videos = catalog["videos"]
+    for i, v in enumerate(videos):
+        if v["id"] == entry["id"]:
+            videos[i] = entry
+            break
+    else:
+        videos.append(entry)
+    write_catalog(catalog, web)
+    return catalog
+
+
+def remove_from_catalog(web, video_id, delete_assets=True):
+    """Quita el video del catálogo y borra sus activos (solo los que lista su manifiesto,
+    así nunca se toca otro video aunque su id empiece igual)."""
+    catalog = read_catalog(web)
+    catalog["videos"] = [v for v in catalog["videos"] if v["id"] != video_id]
+    write_catalog(catalog, web)
+    removed = []
+    manifest_path = web / "public" / DATA_DIR / f"{video_id}.json"
+    if delete_assets and manifest_path.exists():
+        m = json.loads(manifest_path.read_text())
+        srcs = [m["video"]["src"], m["timeline"]["src"]] + [s["src"] for s in m["audio"]["stems"]]
+        for f in [web / "public" / src for src in srcs if relative(src)] + [manifest_path]:
+            if f.exists():
+                f.unlink()
+                removed.append(f)
+    return removed
 
 
 def validate(manifest, public, reference=None):
@@ -252,7 +307,9 @@ def validate(manifest, public, reference=None):
             ref = reference[s["id"]]
             r["lag_samples"] = lag(ref, x)
             n = min(len(ref), len(x))
-            r["snr_db"] = round(float(10 * np.log10((ref[:n] ** 2).sum() / ((ref[:n] - x[:n]) ** 2).sum())), 1)
+            signal, error = float((ref[:n] ** 2).sum()), float(((ref[:n] - x[:n]) ** 2).sum())
+            # una pista sin notas no tiene señal: no hay SNR que medir
+            r["snr_db"] = round(10 * np.log10(signal / error), 1) if signal > 0 and error > 0 else None
             if r["lag_samples"] != 0:
                 errors.append(f"{s['id']}: desfase de {r['lag_samples']} muestras tras codificar")
         stems_report.append(r)
@@ -271,11 +328,11 @@ def validate(manifest, public, reference=None):
         if b > BUDGET[k]:
             errors.append(f"{k}: {b} bytes supera el presupuesto de {BUDGET[k]}")
 
-    texts = json.dumps(manifest["credits"]) + manifest["notice"]
-    for needed in ("NASA/Goddard Space Flight Center Scientific Visualization Studio",
-                   "svs.gsfc.nasa.gov/3912", "ECCO2", "No está respaldado por NASA"):
-        if needed not in texts:
-            errors.append(f"falta en los créditos: {needed}")
+    if not manifest.get("test") and not any("nasa.gov" in (c.get("url") or "") for c in manifest["credits"]):
+        errors.append("los créditos necesitan al menos un enlace a la fuente de NASA (nasa.gov)")
+    for lang in tx.LANGS:
+        if "NASA" not in manifest["texts"][lang]["notice"]:
+            errors.append(f"falta el aviso de no respaldo de NASA ({lang})")
 
     if errors:
         raise BuildError("; ".join(errors))
@@ -294,38 +351,34 @@ def print_report(report):
     v = report["video"]
     print(f"Video: {v['size']}, {v['fps']:g} fps, {v['frames']} frames, {v['kbps']} kb/s")
     for s in report["stems"]:
-        extra = f", desfase {s['lag_samples']} muestras, SNR {s['snr_db']} dB" if "lag_samples" in s else ""
+        snr = "sin señal" if s.get("snr_db") is None else f"{s['snr_db']} dB"
+        extra = f", desfase {s['lag_samples']} muestras, SNR {snr}" if "lag_samples" in s else ""
         print(f"Stem {s['id']:12s} {s['samples']} muestras, pico {s['peak_dbfs']} dBFS{extra}")
     print(f"Peor combinación de pistas (mute/solo): {report['worst_combination_peak_dbfs']} dBFS")
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--name", required=True, help="prefijo de las salidas en out/ (p. ej. ecco2_full)")
-    ap.add_argument("--video", type=Path, help="video original analizado")
-    ap.add_argument("--dates", type=Path, help="fechas del modelo por frame (opcional)")
-    ap.add_argument("--slug", default="ecco2", help="nombre de los activos web")
-    ap.add_argument("--out", type=Path, default=HERE / "out", help="carpeta con las salidas de run.sh")
+    ap.add_argument("--check-only", action="store_true", required=True,
+                    help="valida los activos publicados (para generarlos: jukebox.py build)")
+    ap.add_argument("--id", default=None, help="solo este video (por defecto, todo el catálogo)")
     ap.add_argument("--web", type=Path, default=WEB)
-    ap.add_argument("--video-kbps", type=int, default=1200)
-    ap.add_argument("--audio-kbps", type=int, default=128)
-    ap.add_argument("--skip-video", action="store_true", help="reutiliza el video web si ya existe")
-    ap.add_argument("--check-only", action="store_true", help="valida los activos existentes")
     a = ap.parse_args(argv)
-    try:
-        if a.check_only:
-            path = a.web / "public" / DATA_DIR / f"{a.slug}.json"
-            report = validate(json.loads(path.read_text()), a.web / "public")
-        else:
-            if not a.video and not a.skip_video:
-                ap.error("--video es obligatorio salvo con --skip-video o --check-only")
-            _, report = build(a)
-    except BuildError as e:
-        print(f"ERROR: {e}", file=sys.stderr)
+    ids = [a.id] if a.id else [v["id"] for v in read_catalog(a.web)["videos"]]
+    if not ids:
+        print("El catálogo está vacío", file=sys.stderr)
         return 1
-    print_report(report)
-    print("OK")
-    return 0
+    status = 0
+    for vid in ids:
+        print(f"== {vid}")
+        try:
+            path = a.web / "public" / DATA_DIR / f"{vid}.json"
+            print_report(validate(json.loads(path.read_text()), a.web / "public"))
+            print("OK")
+        except (BuildError, FileNotFoundError) as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            status = 1
+    return status
 
 
 if __name__ == "__main__":

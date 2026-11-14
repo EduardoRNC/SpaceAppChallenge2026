@@ -3,8 +3,9 @@
 // Cada idioma es un objeto anidado de textos (en.js, es.js); `t("transport.play")` busca la
 // clave en el idioma activo, después en inglés y, si no está en ninguno, devuelve la propia
 // clave (y lo avisa con `onMissing`). Los textos pueden llevar variables: "{name}".
-// Los textos que vienen de los datos (manifiesto, timeline.json) se traducen por su
-// identificador; si falta la traducción se muestra el texto original de los datos.
+// Los textos que dependen del vídeo (título, pistas, medidas, créditos) llegan en su
+// manifiesto (texts.en, texts.es) y se añaden con addData() bajo "data."; si falta alguno
+// se muestra el texto original de los datos.
 
 import en from "./en.js";
 import es from "./es.js";
@@ -90,6 +91,8 @@ export function initialLang({ search = "", storage = null } = {}) {
 
 export function createI18n({ dictionaries = DICTIONARIES, lang = DEFAULT_LANG, storage = null, onMissing = () => {} } = {}) {
   let current = isLang(lang) ? lang : DEFAULT_LANG;
+  // Copia por idioma: addData no debe tocar los diccionarios del módulo.
+  dictionaries = Object.fromEntries(Object.entries(dictionaries).map(([k, v]) => [k, { ...v }]));
   const listeners = new Set();
   const formats = new Map();
 
@@ -126,6 +129,13 @@ export function createI18n({ dictionaries = DICTIONARIES, lang = DEFAULT_LANG, s
       return text == null ? original : interpolate(text, vars);
     },
     has: (key) => find(key) != null,
+    /**
+     * Textos del vídeo cargado (manifest.texts = { en: {...}, es: {...} }), bajo "data.".
+     * Sustituye los del vídeo anterior.
+     */
+    addData(texts) {
+      for (const l of Object.keys(LANGS)) dictionaries[l] = { ...dictionaries[l], data: texts?.[l] ?? {} };
+    },
     number: (value, options = {}) => format("number", options).format(value),
     date: (value, options = {}) => format("date", options).format(value),
     setLang(next) {

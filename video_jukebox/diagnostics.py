@@ -22,18 +22,27 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
-from analyze import temperature_index  # noqa: E402
+from analyzers.common import hue_index as temperature_index  # noqa: E402
 
-PANELS = [("temp", "Índice de color frío-cálido\n(0..1, proxy)"),
-          ("speed", "Movimiento aparente\n(px/frame, proxy)"),
-          ("vort", "Turbulencia aparente\n(1/frame, proxy)"),
-          ("cover", "Cobertura de píxeles\nválidos (0..1)")]
-CH_COLORS = {"temperatura": "tab:red", "corrientes": "tab:blue",
-             "remolinos": "tab:purple", "ecuatorial": "tab:brown"}
+CH_PALETTE = ["tab:red", "tab:blue", "tab:purple", "tab:brown"]
+
+
+def panels(tl, n=4):
+    """Las primeras medidas del timeline (sin 'v'/'u' si sobran) y siempre 'cover' al final."""
+    metrics = tl["features"]["metrics"]
+    keys = [k for k in metrics if k != "cover"]
+    if len(keys) > n - 1:
+        keys = [k for k in keys if k not in ("u", "v")] or keys
+    keys = keys[: n - 1] + ["cover"]
+    return [(k, f"{metrics[k]['label']}\n({metrics[k]['unit']}, proxy)") for k in keys]
+
+
+def ch_colors(tl):
+    return {c["id"]: CH_PALETTE[i % len(CH_PALETTE)] for i, c in enumerate(tl["channels"])}
 
 
 def load_dates(path):
-    """flat_ecco2_dates.txt: '<frame>  <fecha ISO>' por línea; línea i = frame i del video."""
+    """Fechas por frame (p. ej. flat_ecco2_dates.txt): '<frame>  <fecha ISO>' por línea."""
     out = []
     for line in open(path):
         parts = line.split()
@@ -47,6 +56,7 @@ def series(tl, metric, region):
 
 
 def plot_timeline(tl, out, dates=None):
+    PANELS, CH_COLORS = panels(tl), ch_colors(tl)
     t = np.array(tl["features"]["t"])
     regions = [r["id"] for r in tl["regions"]]
     fig, axes = plt.subplots(len(PANELS) + 1, 1, figsize=(13, 13), sharex=True,
@@ -85,7 +95,7 @@ def plot_timeline(tl, out, dates=None):
         top = axes[0].secondary_xaxis("top")
         top.set_xticks([x for x, i in zip(axes[0].get_xticks(), idx) if 0 <= i < len(dates)])
         top.set_xticklabels([dates[i].strftime("%Y-%m-%d") for i in idx if 0 <= i < len(dates)], fontsize=8)
-        top.set_xlabel(f"Fecha del modelo ECCO2 (fila i = frame i+{offset})", fontsize=8)
+        top.set_xlabel(f"Fecha del modelo (fila i = frame i+{offset})", fontsize=8)
     fig.suptitle(title, fontsize=10, y=0.995)
     fig.tight_layout()
     fig.savefig(out, dpi=110)
@@ -124,6 +134,7 @@ def plot_colormap(path, out, vmin, vmax):
 
 
 def summary(tl, dates=None):
+    PANELS = panels(tl)
     regions = [r["id"] for r in tl["regions"]]
     fps, offset = tl["timing"]["fps"], tl["timing"]["frame_offset"]
     print(f"{'región':<12}" + "".join(f"{m:>22}" for m, _ in PANELS))
@@ -133,7 +144,7 @@ def summary(tl, dates=None):
             s = series(tl, m, r)
             cells.append(f"{np.nanmean(s):7.3f} [{np.nanmin(s):6.3f},{np.nanmax(s):6.3f}]")
         print(f"{r:<12}" + "".join(f"{c:>22}" for c in cells))
-    if dates:
+    if dates and "temp" in tl["features"]["metrics"]:
         k = int(fps * 2)
         for r in ("norte_medio", "sur_medio"):
             s = np.convolve(series(tl, "temp", r), np.ones(k) / k, mode="valid")
