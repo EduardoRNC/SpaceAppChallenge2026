@@ -73,8 +73,8 @@ python3 -m venv .venv
 # Web
 cd web
 npm install
-npm run dev      # servidor local de desarrollo
-npm test         # tests del motor de sonido
+npm run dev      # servidor local de desarrollo (/jukebox.html: demo ECCO2 con mute/solo)
+npm test         # tests del motor de sonido y del jukebox
 npm run build    # versión para publicar (web/dist)
 ```
 
@@ -105,3 +105,6 @@ docs/        proceso creativo, decisiones y tests de escucha
 ## Créditos
 
 Visualización: NASA Scientific Visualization Studio. Datos: NASA GISS (GISTEMP Team). Este proyecto no está respaldado por NASA.
+
+Demo del jukebox (`jukebox.html`): visualización NASA/GSFC Scientific Visualization Studio,
+[SVS 3912](https://svs.gsfc.nasa.gov/3912/), con datos del modelo ECCO2 (MIT/JPL).

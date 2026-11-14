@@ -69,10 +69,16 @@ Un script `video_jukebox/build_web.py` que, a partir de `out/<nombre>_*`, escrib
 
 | Archivo | Cómo | Tamaño estimado |
 |---|---|---|
-| `web/public/media/jukebox/ecco2.mp4` | ffmpeg: 1280×640, H.264 CRF ~26, sin audio, `+faststart`, GOP corto para saltos | ~8–12 MB |
-| `web/public/media/jukebox/ecco2_<pista>.m4a` ×4 | stems del preview FM (ver abajo), AAC 96 kbps | ~0.8 MB cada uno |
-| `web/public/data/jukebox/ecco2_timeline.json` | copia de `timeline.json` | 553 KB (137 KB con gzip) |
-| `web/public/data/jukebox/ecco2_manifest.json` | rutas, créditos NASA, colores e instrumentos | < 2 KB |
+| `web/public/media/jukebox/ecco2.mp4` | ffmpeg: 1280×640, H.264 2 pasadas a 1200 kb/s, sin audio, `+faststart`, GOP 30 para saltos | 10.0 MB |
+| `web/public/media/jukebox/ecco2_<pista>.m4a` ×4 | stems del preview FM (ver abajo), AAC 128 kbps | 0.8–1.1 MB cada uno |
+| `web/public/data/jukebox/ecco2_timeline.json` | `timeline.json` minificado | 553 KB (137 KB con gzip) |
+| `web/public/data/jukebox/ecco2.json` | manifiesto: rutas, créditos NASA, colores, instrumentos y fechas del modelo | 4 KB |
+
+Implementado (pasos 1–3 del plan); detalles y comandos en
+[`video_jukebox/README.md`](../video_jukebox/README.md#activos-para-la-web-build_webpy). Con CRF el
+video pesaba 27–47 MB, por eso se codifica a tasa fija. Los stems van a 128 kbps; la campana
+(`remolinos`, espectro FM denso) queda con SNR 13 dB frente al WAV y no mejora mucho a 192 kbps
+(14.9 dB): falta una escucha atenta para decidir si es audible.
 
 **Mute/solo necesita pistas separadas**: el `preview.wav` actual es una mezcla. Propuesta mínima:
 `render_preview.py --stems` renderiza cada canal por separado con **la misma ganancia de
@@ -89,9 +95,10 @@ mezcla. Test: la suma de stems ≈ mezcla antes de la saturación final y misma 
 
 ## Plan en pasos pequeños
 
-1. `render_preview.py --stems` + tests.
-2. `build_web.py` + activos generados.
-3. `jukebox.html` con video, audio por stems, mute/solo y sincronía.
+1. `render_preview.py --stems` + tests. **Hecho.**
+2. `build_web.py` + activos generados. **Hecho.**
+3. `jukebox.html` con video, audio por stems, mute/solo y sincronía. **Hecho** (el audio manda;
+   el video lo sigue ajustando su velocidad ±1–10 % y solo salta si se desvía más de 0.3 s).
 4. Línea temporal de notas.
 5. Paneles de regiones y de proxies.
 6. Documentación y comprobación manual.
