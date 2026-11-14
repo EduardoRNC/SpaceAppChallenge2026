@@ -48,19 +48,24 @@
         <h2 id="legend-title">Cómo escucharlo</h2>
         <ul>
           <li>
-            <strong>Nota grave y constante (drone):</strong> la temperatura media de
-            1951–1980. Es la referencia.
+            <strong>Drone grave:</strong> la referencia (media de 1951–1980). Crece cuanto
+            más calor hace.
           </li>
           <li>
             <strong>Melodía:</strong> una nota por año. Cuanto más aguda, más caliente fue
             ese año.
           </li>
           <li>
-            <strong>Arpegio suave:</strong> los 12 meses de cada año.
+            <strong>Arpegio y ostinato de fondo:</strong> los 12 meses de cada año, uno agudo
+            y otro grave.
           </li>
           <li>
-            <strong>Tensión:</strong> al pasar de +0.5 °C la música se vuelve menor; desde
-            +1.0 °C aparece un roce disonante contra el drone.
+            <strong>Latido:</strong> un corazón que se acelera con la temperatura, de
+            reposo a taquicardia.
+          </li>
+          <li>
+            <strong>Tensión:</strong> pasados +0.5 °C la escala se vuelve menor. Desde +0.4 °C
+            entra un roce de segunda menor contra el drone, y desde +0.8 °C un tritono.
           </li>
           <li><strong>Tick:</strong> empieza una década.</li>
           <li><strong>Campanita:</strong> ese año batió el récord de calor.</li>
@@ -71,16 +76,18 @@
         <h2 id="settings-title">Ajustes</h2>
         <fieldset>
           <legend>Velocidad (se aplica al volver a reproducir)</legend>
-          <label><input type="radio" name="speed" value="0.1597" /> Rápida, como el vídeo original (~25 s)</label>
-          <label><input type="radio" name="speed" value="0.41" checked /> Normal (~1 min)</label>
+          <label><input type="radio" name="speed" value="0.1597" checked /> Original del vídeo (~25 s)</label>
+          <label><input type="radio" name="speed" value="0.41" /> Pausada (~1 min)</label>
           <label><input type="radio" name="speed" value="1" /> Lenta (~2.5 min)</label>
           <label><input type="radio" name="speed" value="2" /> Muy lenta (~5 min)</label>
         </fieldset>
         <fieldset>
           <legend>Capas de sonido</legend>
           <label><input type="checkbox" name="layer" value="melody" checked /> Melodía anual</label>
-          <label><input type="checkbox" name="layer" value="arp" checked /> Arpegio mensual</label>
-          <label><input type="checkbox" name="layer" value="drone" checked /> Drone de referencia y disonancia</label>
+          <label><input type="checkbox" name="layer" value="arp" checked /> Arpegio mensual (agudo)</label>
+          <label><input type="checkbox" name="layer" value="ostinato" checked /> Ostinato de fondo (grave)</label>
+          <label><input type="checkbox" name="layer" value="drone" checked /> Drone y disonancia</label>
+          <label><input type="checkbox" name="layer" value="pulse" checked /> Latido</label>
           <label><input type="checkbox" name="layer" value="ticks" checked /> Tick de década</label>
           <label><input type="checkbox" name="layer" value="records" checked /> Campanita de récord</label>
         </fieldset>

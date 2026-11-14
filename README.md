@@ -83,7 +83,7 @@ docs/        proceso creativo, decisiones y tests de escucha
 - [x] Paso 0 — Frase guía y mapeo v1
 - [x] Paso 1 — Esqueleto del repo
 - [x] Paso 2 — Pipeline de datos
-- [ ] Paso 3 — Primer sonido
+- [x] Paso 3 — Primer sonido
 - [ ] Paso 4 — Test a ciegas y ajuste
 - [ ] Paso 5 — Vídeo y sincronía
 - [ ] Paso 6 — Interfaz accesible y modos

@@ -43,6 +43,32 @@ Lo que revelaron los datos y cómo influye en el diseño:
 - **La campanita suena al cerrar el año récord.** Así respeta la causalidad: un año solo es récord cuando termina.
 - **El lector de pantalla solo anuncia las décadas.** Anunciar cada año (2.4 por segundo) lo saturaría.
 
+## Motor de sonido v2: más serio y tenso
+
+**Opinión tras escuchar la v1** (commit `ebeab4a`): a la velocidad original del vídeo se entiende la subida y la frecuencia creciente de las campanas, pero el acompañamiento no transmite suficiente seriedad ni tensión.
+
+**Cambios en la v2:**
+
+- **Escala oscura desde el inicio.** Se pasa de "pentatónica mayor → menor" a **eólico → frigio → locrio**, entre +0.3 y +1.2 °C. Los tres modos solo difieren en el 2º grado (2→1) y en el 5º (7→6), así que la mezcla mantiene la regla "más caliente = más agudo" (hay un test que lo verifica).
+- **Latido (lub-dub)** de timbal, de 54 a 144 lpm entre 0 y +1.4 °C. El tempo está en tiempo real, así que acelera igual a cualquier velocidad de reproducción. Es la metáfora de "fiebre del planeta".
+- **Drone en quinta abierta** grave (C2–G2 en sierras, más un sub C1). Su filtro y su volumen crecen con la temperatura, con un crescendo general.
+- **Cluster disonante:** Re♭ (2ª menor) desde +0.4 °C y Fa♯ (tritono) desde +0.8 °C. En la v1 la disonancia empezaba en +1.0 °C y era tenue.
+- **Viento / presión:** ruido rosa en banda que sube de 300 a 3000 Hz por encima de +0.5 °C.
+- **Timbres:** la melodía usa sierras desafinadas (tipo sección), el arpegio pasa a ser un ostinato grave y corto, y la campana es más grave e inarmónica, como un toque de alarma.
+- **Mezcla:** reverb más larga, compresor y limitador.
+- **Velocidad por defecto:** la original del vídeo (~25 s), que es con la que se validó la v1.
+
+## Motor de sonido v3: tonos de la v1 + tensión de la v2
+
+**Opinión tras escuchar la v2:** gustan la subida de tensión del final y la melodía grave de fondo, pero **no la distorsión**. La v1 sonaba mejor.
+
+**Combinación en la v3:**
+
+- **De la v1** (timbres limpios): melodía en triángulo, arpegio pulsado agudo, drone en ondas seno (C2–C3), campanita aguda y escala pentatónica mayor → menor (+0.5 a +1.0 °C).
+- **De la v2** (tensión): latido que se acelera (54 → 144 lpm), crescendo del drone y de la melodía, y el ostinato grave de fondo, ahora en triángulo.
+- **Disonancia sin distorsión:** el cluster (Re♭ desde +0.4 °C, Fa♯ desde +0.8 °C) se hace con ondas triangulares filtradas. Re♭3 contra Do3 produce un batido de unos 8 Hz: tensión por roce, no por suciedad.
+- **Eliminado** (fuentes de distorsión): sierras desafinadas, ruido del "viento" y compresor.
+
 ## Vídeo y calibración
 
 Vídeo: [SVS 5190](https://svs.gsfc.nasa.gov/5190/), versión en español en °C. El original es de 2160×2160, 60 fps y 30 s (1800 frames). Para la web se convierte a 1080×1080 con `scripts/prepare_video.py`.

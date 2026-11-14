@@ -2,11 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULTS,
+  MAJOR_PENTA,
+  MINOR_PENTA,
+  SCALES,
+  clusterLevels,
   cutoffFor,
-  dissonance,
+  intensity,
   midiForStep,
   midiToFreq,
   noteFor,
+  pulseBpm,
+  pulseTimes,
+  scaleFor,
   stepFor,
   tension,
   yearlyMeans,
@@ -19,15 +26,12 @@ test("la línea base (0 °C) suena en la tónica C4", () => {
   assert.equal(noteFor(0, 0, cfg), 60);
 });
 
-test("más caliente = nota más aguda, sea cual sea el modo (mayor o menor)", () => {
-  // Grado a grado: el grado k+1 siempre suena más agudo que el k, en cualquier modo.
-  for (let step = -8; step < 12; step++) {
-    for (const a of [false, true]) {
-      for (const b of [false, true]) {
-        assert.ok(
-          midiForStep(step + 1, a, 60) > midiForStep(step, b, 60),
-          `grado ${step}→${step + 1} (${a}/${b})`,
-        );
+test("más caliente = nota más aguda, sea cual sea el modo", () => {
+  // Grado a grado: el grado k+1 siempre suena más agudo que el k, en cualquier combinación de modos.
+  for (let step = -10; step < 14; step++) {
+    for (const a of SCALES) {
+      for (const b of SCALES) {
+        assert.ok(midiForStep(step + 1, a, 60) > midiForStep(step, b, 60), `grado ${step}`);
       }
     }
   }
@@ -49,29 +53,46 @@ test("valores fuera de rango se recortan, no se disparan", () => {
   assert.equal(stepFor(-5, cfg), stepFor(cfg.range[0], cfg));
 });
 
-test("tensión: calma hasta +0.5 °C, total desde +1.0 °C", () => {
-  assert.equal(tension(0.3, cfg), 0);
+test("modo: pentatónica mayor hasta +0.5 °C, menor desde +1.0 °C", () => {
   assert.equal(tension(0.5, cfg), 0);
-  assert.ok(tension(0.75, cfg) > 0.4 && tension(0.75, cfg) < 0.6);
-  assert.equal(tension(1.2, cfg), 1);
-});
-
-test("con tensión 0 todo está en mayor; con tensión 1, todo en menor", () => {
-  const majorOnly = [0, 1, 2, 3, 4].map((s) => midiForStep(s, false, 60));
-  const minorOnly = [0, 1, 2, 3, 4].map((s) => midiForStep(s, true, 60));
-  for (let i = 0; i < 50; i++) {
-    const calm = noteFor(0.2, i, cfg);
-    assert.ok(!minorOnly.includes(calm) || majorOnly.includes(calm));
+  assert.equal(tension(1.0, cfg), 1);
+  for (let i = 0; i < 30; i++) {
+    assert.equal(scaleFor(0.2, i, cfg), MAJOR_PENTA);
+    assert.equal(scaleFor(1.2, i, cfg), MINOR_PENTA);
   }
-  // A +1.3 °C la tensión es total, así que la nota pertenece a la pentatónica menor.
-  const step = stepFor(1.3, cfg);
-  assert.equal(noteFor(1.3, 7, cfg), midiForStep(step, true, 60));
 });
 
-test("disonancia: nula hasta +1.0 °C y máxima en +1.6 °C", () => {
-  assert.equal(dissonance(0.9, cfg), 0);
-  assert.equal(dissonance(1.0, cfg), 0);
-  assert.equal(dissonance(1.6, cfg), 1);
+test("cluster disonante: 2ª menor desde +0.4 °C y tritono desde +0.8 °C", () => {
+  assert.deepEqual(clusterLevels(0.3, cfg), { minorSecond: 0, tritone: 0 });
+  const mid = clusterLevels(0.9, cfg);
+  assert.ok(mid.minorSecond > 0.8 && mid.tritone > 0 && mid.tritone < 0.3);
+  assert.deepEqual(clusterLevels(1.5, cfg), { minorSecond: 1, tritone: 1 });
+});
+
+test("latido: reposo a 0 °C o menos, y más rápido cuanto más calor", () => {
+  assert.equal(pulseBpm(-0.5, cfg), cfg.pulseBpmMin);
+  assert.equal(pulseBpm(0, cfg), cfg.pulseBpmMin);
+  assert.ok(pulseBpm(0.7, cfg) > pulseBpm(0.3, cfg));
+  assert.equal(pulseBpm(1.5, cfg), cfg.pulseBpmMax);
+});
+
+test("pulseTimes: latidos más juntos en años calientes, sin importar la velocidad", () => {
+  const years = [
+    ...Array.from({ length: 40 }, () => ({ v: 0 })),
+    ...Array.from({ length: 40 }, () => ({ v: 1.4 })),
+  ];
+  for (const yd of [0.16, 0.41, 2]) {
+    const times = pulseTimes(years, yd, cfg);
+    const half = 40 * yd;
+    const cold = times.filter((p) => p.t < half).length;
+    const hot = times.filter((p) => p.t >= half).length;
+    assert.ok(hot > cold * 2, `yd=${yd}: ${cold} vs ${hot}`);
+  }
+});
+
+test("el crescendo crece con la temperatura", () => {
+  assert.ok(intensity(1.0, cfg) > intensity(0.2, cfg));
+  assert.equal(intensity(1.4, cfg), 1);
 });
 
 test("brillo: crece con la temperatura dentro de [cutoffMin, cutoffMax]", () => {
