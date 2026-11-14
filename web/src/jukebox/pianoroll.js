@@ -5,14 +5,19 @@
 // que se oye. Las pistas sin sonido (mute/solo) se atenúan; las notas que suenan se resaltan.
 
 import { buildLanes, chordLabels, isActive, noteBox, notesInWindow, rollView, timeAtX, xAt } from "./timeline.js";
+import { rollKeyTarget } from "./nav.js";
 
 const SPAN_S = 10;
 const LEAD = 0.25;
 const CHORD_H = 24;
 const GAP = 3;
 
-/** `labelOf(stem)`: nombre de la pista en el idioma activo (se pide en cada dibujo). */
-export function createPianoRoll({ canvas, timeline, stems, labelOf = (s) => s.label, onSeek = () => {} }) {
+/**
+ * `labelOf(stem)`: nombre de la pista en el idioma activo (se pide en cada dibujo).
+ * Con el teclado es un control deslizante (role="slider"): las flechas mueven un tiempo y
+ * Re Pág / Av Pág un compás; `describe(t)` da el texto que lee el lector de pantalla.
+ */
+export function createPianoRoll({ canvas, timeline, stems, labelOf = (s) => s.label, describe = () => "", onSeek = () => {} }) {
   const ctx = canvas.getContext("2d");
   const lanes = buildLanes(timeline);
   const style = Object.fromEntries(stems.map((s) => [s.id, s]));
@@ -39,6 +44,23 @@ export function createPianoRoll({ canvas, timeline, stems, labelOf = (s) => s.la
   canvas.addEventListener("pointerdown", (e) => {
     const box = canvas.getBoundingClientRect();
     onSeek(timeAtX(e.clientX - box.left, view, box.width));
+  });
+
+  let lastT = 0;
+  Object.entries({ "aria-valuemin": 0, "aria-valuemax": end.toFixed(1) }).forEach(([k, v]) => canvas.setAttribute(k, v));
+  function syncAria(t = lastT) {
+    canvas.setAttribute("aria-valuenow", t.toFixed(1));
+    canvas.setAttribute("aria-valuetext", describe(t));
+  }
+  canvas.addEventListener("focus", () => syncAria());
+  canvas.addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const target = rollKeyTarget(e.key, lastT, { beat: spb, bar: spb * perBar, end });
+    if (target == null) return;
+    e.preventDefault();
+    onSeek(target);
+    lastT = target;
+    syncAria(target);
   });
 
   const x = (time) => xAt(time, view, width);
@@ -111,8 +133,11 @@ export function createPianoRoll({ canvas, timeline, stems, labelOf = (s) => s.la
     get view() {
       return view;
     },
+    /** Actualiza el texto del lector de pantalla (tras un salto, una pausa o un cambio de idioma). */
+    syncAria,
     /** Dibuja la ventana alrededor de t. `gains`: { id: 0 | 1 } (mute/solo). */
     draw(t, gains = {}) {
+      lastT = t;
       if (!width || !height) return;
       view = rollView(t, SPAN_S, LEAD);
       ctx.clearRect(0, 0, width, height);

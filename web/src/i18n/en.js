@@ -36,9 +36,10 @@ export default {
     chord: "Chord {name}",
   },
   roll: {
-    label: "Piano roll: chords and notes of the four tracks in the 10 seconds around the playhead",
+    label: "Piano roll: chords and notes of the four tracks",
     caption:
-      "10-second piano roll: chords on top and one row per track (high notes at the top). The orange line is what is sounding now; click the chart to jump to that moment.",
+      "10-second piano roll: chords on top and one row per track (high notes at the top). The orange line is what is sounding now. Click the chart to jump to that moment, or focus it and use the arrow keys (one beat), Page Up / Page Down (one bar) and Home / End.",
+    valueText: "{time}. Chord {chord}. {notes}",
     sounding: "Sounding: {parts}",
     silent: "No notes sounding.",
   },
@@ -132,9 +133,11 @@ export default {
     title: "What the image measures, by region",
     warning:
       "<strong>All these measures are uncalibrated visual proxies.</strong> They are computed from the video's pixels (color and optical flow): they are not temperatures in °C, speeds in m/s or physical vorticity. They are shown frame by frame, without the smoothing the music uses. In this video, fast changes in apparent motion and turbulence are mostly compression noise; the color index does follow the seasons.",
+    keys: "Click a chart to jump to that moment, or focus it and use the arrow keys (1 s), Page Up / Page Down (10 s) and Home / End.",
     picker: "Region (latitude band)",
     proxy: "Visual proxy · uncalibrated",
     now: "Now: {value} {unit}",
+    valueText: "{time}: {value} ({unit})",
     range: "min {min} · max {max} {unit}",
     noData: "no data",
     noValue: "no value",
@@ -194,7 +197,7 @@ export default {
     shift: "Shift",
     solo: "Solo a track",
     reset: "Unmute all tracks",
-    note: "When a button has focus, Space and Enter press it; on the position bar, the arrow keys move it. Text fields and drop-downs have no shortcuts.",
+    note: "When a button has focus, Space and Enter press it. On the position bar, the piano roll and the charts, the arrow keys, Home and End move within that control. Text fields and drop-downs have no shortcuts.",
   },
   what: {
     title: "What you are hearing",

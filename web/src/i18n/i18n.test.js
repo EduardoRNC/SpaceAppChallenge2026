@@ -246,8 +246,8 @@ test("cambiar de idioma solo reescribe textos: no toca el reproductor, el transp
     }
     return "";
   };
-  const text = ["applyLanguage", "relabelStems", "updateMixButtons", "renderCredits", "updatePlayButton"].map(body).join("\n");
-  assert.doesNotMatch(text, /\b(player|transport|follower)\.(?!playing\b)\w+\s*\(/, "sin llamadas al reproductor");
+  const text = ["applyLanguage", "relabelStems", "updateMixButtons", "renderCredits", "updatePlayButton", "syncSliders"].map(body).join("\n");
+  assert.doesNotMatch(text, /\b(player|transport|follower)\.(?!playing\b|position\()\w+\s*\(/, "sin llamadas al reproductor (solo leer la posición)");
   assert.doesNotMatch(text, /el\.video|\.currentTime|\.play\(|\.pause\(/, "sin tocar el vídeo");
   assert.match(body("applyLanguage"), /documentElement\.lang = i18n\.lang/);
 });

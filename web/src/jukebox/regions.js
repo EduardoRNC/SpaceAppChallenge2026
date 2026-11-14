@@ -7,6 +7,7 @@
 import { frameIndex, seriesPath, seriesRange } from "./timeline.js";
 import { effectKey, formatValue, HARMONY, latitudeText, METRIC_ORDER, regionsText, TRACK_MAPPINGS, usesOf } from "./mappings.js";
 import { dx7Patch, metricText, stemLabel } from "./texts.js";
+import { chartKeyTarget } from "./nav.js";
 
 const W = 600;
 const H = 80;
@@ -48,10 +49,15 @@ export function renderMappingList(list, stems, metrics, i18n) {
   );
 }
 
-export function createRegionCharts({ picker, container, timeline, stems, i18n, onSeek = () => {}, initial = "tropicos" }) {
+/**
+ * Cada gráfica es también un control deslizante (role="slider"): con el teclado, las flechas
+ * mueven un segundo y Re Pág / Av Pág diez; `timeText(s)` formatea el tiempo en el idioma activo.
+ */
+export function createRegionCharts({ picker, container, timeline, stems, i18n, timeText = String, onSeek = () => {}, initial = "tropicos" }) {
   const { t } = i18n;
   const { metrics, t: times } = timeline.features;
   const domain = [0, timeline.timing.video_duration_s];
+  const clampT = (s) => Math.min(Math.max(s, domain[0]), domain[1]);
   const stemById = Object.fromEntries(stems.map((s) => [s.id, s]));
   const ids = METRIC_ORDER.filter((m) => metrics[m]);
   let region = timeline.regions.some((r) => r.id === initial) ? initial : timeline.regions[0].id;
@@ -87,7 +93,14 @@ export function createRegionCharts({ picker, container, timeline, stems, i18n, o
       <p class="jb-chart-now"></p>
       <p class="jb-chart-uses"></p>
       <p class="jb-chart-caveat"></p>`;
-    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", role: "img" });
+    const svg = svgEl("svg", {
+      viewBox: `0 0 ${W} ${H}`,
+      preserveAspectRatio: "none",
+      role: "slider",
+      tabindex: 0,
+      "aria-valuemin": domain[0],
+      "aria-valuemax": domain[1].toFixed(1),
+    });
     const zero = svgEl("line", { x1: 0, x2: W, class: "jb-zero" });
     const line = svgEl("path", { class: "jb-series", "vector-effect": "non-scaling-stroke" });
     const head = svgEl("line", { y1: 0, y2: H, class: "jb-head", "vector-effect": "non-scaling-stroke" });
@@ -101,7 +114,18 @@ export function createRegionCharts({ picker, container, timeline, stems, i18n, o
     range.className = "jb-chart-range";
     svg.after(range);
     container.append(fig);
-    charts.push({ id, m, fig, svg, zero, line, head, range, now: fig.querySelector(".jb-chart-now"), uses: fig.querySelector(".jb-chart-uses") });
+    const chart = { id, m, fig, svg, zero, line, head, range, now: fig.querySelector(".jb-chart-now"), uses: fig.querySelector(".jb-chart-uses") };
+    svg.addEventListener("focus", () => syncAria(chart));
+    svg.addEventListener("keydown", (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const target = chartKeyTarget(e.key, clampT(lastT), domain[1]);
+      if (target == null) return;
+      e.preventDefault();
+      onSeek(target);
+      update(target);
+      syncAria(chart);
+    });
+    charts.push(chart);
   }
 
   const label = (c) => metricText(i18n, c.id, c.m, "label");
@@ -164,12 +188,21 @@ export function createRegionCharts({ picker, container, timeline, stems, i18n, o
       c.uses.append(document.createTextNode(` ${usesText(c.id)}`));
     }
     update(lastT);
+    for (const c of charts) syncAria(c);
+  }
+
+  /** Texto del lector de pantalla: tiempo y valor en el instante del cabezal. */
+  function syncAria(c) {
+    const tv = clampT(lastT);
+    const value = formatValue(c.m.by_region[region][frameIndex(tv, timeline.timing)], i18n);
+    c.svg.setAttribute("aria-valuenow", tv.toFixed(1));
+    c.svg.setAttribute("aria-valuetext", t("regions.valueText", { time: timeText(tv), value, unit: unit(c) }));
   }
 
   /** Mueve el cabezal al tiempo t del audio (se queda en el último fotograma tras el vídeo). */
   function update(t) {
     lastT = t;
-    const tv = Math.min(Math.max(t, domain[0]), domain[1]);
+    const tv = clampT(t);
     const x = ((tv - domain[0]) / (domain[1] - domain[0])) * W;
     for (const c of charts) {
       c.head.setAttribute("x1", x);
@@ -190,6 +223,10 @@ export function createRegionCharts({ picker, container, timeline, stems, i18n, o
     },
     select,
     update,
+    /** Actualiza el texto del lector de pantalla de todas las gráficas. */
+    syncAria() {
+      for (const c of charts) syncAria(c);
+    },
     /** Vuelve a escribir todos los textos en el idioma activo. */
     relabel() {
       staticTexts();

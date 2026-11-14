@@ -36,9 +36,10 @@ export default {
     chord: "Acorde {name}",
   },
   roll: {
-    label: "Piano roll: acordes y notas de las cuatro pistas en los 10 segundos alrededor del cabezal",
+    label: "Piano roll: acordes y notas de las cuatro pistas",
     caption:
-      "Piano roll de 10 s: acordes arriba y una fila por pista (agudo arriba). La línea naranja es lo que suena ahora; pulsa en el gráfico para saltar a ese momento.",
+      "Piano roll de 10 s: acordes arriba y una fila por pista (agudo arriba). La línea naranja es lo que suena ahora. Pulsa en el gráfico para saltar a ese momento, o ponle el foco y usa las flechas (un tiempo), Re Pág / Av Pág (un compás) e Inicio / Fin.",
+    valueText: "{time}. Acorde {chord}. {notes}",
     sounding: "Suena: {parts}",
     silent: "Ninguna nota sonando.",
   },
@@ -132,9 +133,11 @@ export default {
     title: "Lo que mide la imagen, por región",
     warning:
       "<strong>Todas estas medidas son proxies visuales sin calibrar.</strong> Se calculan a partir de los píxeles del vídeo (color y flujo óptico): no son temperaturas en °C, ni velocidades en m/s, ni vorticidad física. Se muestran por fotograma, sin el suavizado que usa la música. En este vídeo, las variaciones rápidas de movimiento aparente y turbulencia se deben sobre todo al ruido de compresión; el índice de color sí sigue las estaciones.",
+    keys: "Pulsa en una gráfica para saltar a ese momento, o ponle el foco y usa las flechas (1 s), Re Pág / Av Pág (10 s) e Inicio / Fin.",
     picker: "Región (franja de latitud)",
     proxy: "Proxy visual · sin calibrar",
     now: "Ahora: {value} {unit}",
+    valueText: "{time}: {value} ({unit})",
     range: "mín. {min} · máx. {max} {unit}",
     noData: "sin datos",
     noValue: "sin dato",
@@ -194,7 +197,7 @@ export default {
     shift: "Mayús",
     solo: "Solo de una pista",
     reset: "Todas las pistas con sonido",
-    note: "Con el foco en un botón, Espacio y Enter lo pulsan; en la barra de posición, las flechas la mueven. En campos de texto y desplegables no hay atajos.",
+    note: "Con el foco en un botón, Espacio y Enter lo pulsan. En la barra de posición, el piano roll y las gráficas, las flechas, Inicio y Fin se mueven dentro de ese control. En campos de texto y desplegables no hay atajos.",
   },
   what: {
     title: "Qué estás oyendo",

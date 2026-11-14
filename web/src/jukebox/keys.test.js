@@ -49,6 +49,16 @@ test("la barra de posición se queda las flechas, Inicio y Fin; Espacio sigue re
   assert.deepEqual(shortcutFor(key("3", range)), { type: "mute", index: 2 });
 });
 
+test("el piano roll y las gráficas (role=slider) se quedan las teclas de navegación", () => {
+  for (const target of [el("CANVAS", { role: "slider" }), el("svg", { role: "slider" })]) {
+    for (const k of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"]) {
+      assert.equal(shortcutFor(key(k, target)), null, `${target.tagName} ${k}`);
+    }
+    assert.deepEqual(shortcutFor(key(" ", target)), { type: "toggle" }, "Espacio sigue reproduciendo");
+    assert.deepEqual(shortcutFor(key("2", target)), { type: "mute", index: 1 });
+  }
+});
+
 test("campos de texto, desplegables y elementos editables se quedan todas las teclas", () => {
   const targets = [
     el("INPUT", { type: "text" }),

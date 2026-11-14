@@ -162,8 +162,18 @@ function showFrameAt(t) {
 
 const endStatus = () => t("status.end");
 
+/** Texto hablado del piano roll y las gráficas en la posición actual (no en cada fotograma). */
+function syncSliders() {
+  if (!roll) return;
+  const pos = player.position();
+  roll.syncAria(pos);
+  regions.update(pos);
+  regions.syncAria();
+}
+
 function onPlayerChange(event) {
   updatePlayButton();
+  if (event !== "start") syncSliders();
   if (event === "end") say(endStatus);
   else if (event === "start" && status === endStatus) say(() => "");
   if (event === "recover") say(() => t("notice.recovered"));
@@ -175,7 +185,6 @@ function onPlayerChange(event) {
 function updatePlayButton() {
   const playing = player?.playing ?? false;
   el.play.textContent = t(playing ? "transport.pause" : "transport.play");
-  el.play.setAttribute("aria-pressed", String(playing));
 }
 
 const stemById = (id) => manifest.audio.stems.find((s) => s.id === id);
@@ -268,16 +277,29 @@ function renderCredits() {
   el.disclaimer.textContent = i18n.data("data.disclaimer", manifest.disclaimer);
 }
 
+const chordAtPos = (pos) => chordAt(timeline.chords, Math.min(pos, timeline.timing.music_duration_s - 1e-6));
+
+/** Notas que se oyen en pos (las pistas silenciadas no cuentan). */
+function soundingText(pos, mix = gains(states)) {
+  const parts = Object.entries(soundingAt(roll.lanes, pos))
+    .filter(([id, notes]) => notes.length && mix[id] > 0)
+    .map(([id, notes]) => `${label(id)}: ${notes.map(noteName).join(" ")}`);
+  return parts.length ? t("roll.sounding", { parts: parts.join(" · ") }) : t("roll.silent");
+}
+
+/** Lo que lee el lector de pantalla en el piano roll: tiempo, acorde y notas. */
+function describeRoll(pos) {
+  const chord = chordAtPos(pos);
+  return t("roll.valueText", { time: time(pos), chord: chord ? chord.name : "–", notes: soundingText(pos) });
+}
+
 function updateMusic(pos) {
-  const chord = chordAt(timeline.chords, Math.min(pos, timeline.timing.music_duration_s - 1e-6));
+  const chord = chordAtPos(pos);
   el.chord.textContent = chord ? t("readout.chord", { name: chord.name }) : "";
   const mix = gains(states);
   roll.draw(pos, mix);
   regions.update(pos);
-  const parts = Object.entries(soundingAt(roll.lanes, pos))
-    .filter(([id, notes]) => notes.length && mix[id] > 0)
-    .map(([id, notes]) => `${label(id)}: ${notes.map(noteName).join(" ")}`);
-  const text = parts.length ? t("roll.sounding", { parts: parts.join(" · ") }) : t("roll.silent");
+  const text = soundingText(pos, mix);
   if (text !== nowText) el.now.textContent = nowText = text;
 }
 
@@ -387,6 +409,7 @@ function applyLanguage() {
   relabelStems();
   updateMixButtons();
   regions.relabel();
+  syncSliders();
   renderMappingList(el.mapping, manifest.audio.stems, timeline.features.metrics, i18n);
   nowText = "";
 }
@@ -470,6 +493,7 @@ async function init() {
       timeline,
       stems: manifest.audio.stems,
       labelOf: (s) => stemLabel(i18n, s),
+      describe: describeRoll,
       onSeek: (pos) => player.jump(pos),
     });
     regions = createRegionCharts({
@@ -478,6 +502,7 @@ async function init() {
       timeline,
       stems: manifest.audio.stems,
       i18n,
+      timeText: time,
       onSeek: (pos) => player.jump(pos),
     });
     for (const s of document.querySelectorAll(".jb-regions, .jb-map")) s.hidden = false;
