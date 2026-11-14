@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>La espiral que suena — Earth Information Jukebox</title>
+    <meta
+      name="description"
+      content="Escucha el calentamiento global: la NASA Climate Spiral convertida en sonido."
+    />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Saltar al contenido</a>
+    <header>
+      <h1>La espiral que suena</h1>
+      <p>El calentamiento global desde 1880, para escuchar.</p>
+    </header>
+    <main id="main">
+      <section aria-labelledby="player-title">
+        <h2 id="player-title">Reproductor</h2>
+        <p id="status" role="status" aria-live="polite">Cargando…</p>
+      </section>
+    </main>
+    <footer>
+      <p>
+        Datos: NASA GISS (GISTEMP v4). Visualización: NASA Scientific
+        Visualization Studio. Proyecto para NASA Space Apps Challenge 2026.
+      </p>
+    </footer>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

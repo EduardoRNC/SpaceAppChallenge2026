@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node / Vite
+web/node_modules/
+web/dist/
+
+# Medios pesados y frames extraídos (se regeneran con los scripts)
+data/frames/
+web/public/media/*.mp4
+
+# Editor / sistema
+.vscode/
+.DS_Store
