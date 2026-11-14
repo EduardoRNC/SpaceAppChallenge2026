@@ -96,6 +96,16 @@ The Climate Spiral page (`web/index.html`) is in Spanish only for now; the Video
 
 How the music is generated, how to rebuild the web assets and how to use the player: [`video_jukebox/README.md`](video_jukebox/README.md). Validation against the real ECCO2 video (in Spanish): [`docs/ECCO2_VALIDATION.md`](docs/ECCO2_VALIDATION.md).
 
+## Future Work — Support for Additional NASA Visualizations
+
+> This is a proposed extension, not a feature that is available today. The jukebox currently supports only the ECCO2 video (SVS 3912).
+
+A future version could turn other NASA visualizations into music, for example the Black Marble night lights maps ([SVS 5276](https://svs.gsfc.nasa.gov/5276/)). The idea is to separate what is specific to each video from what can be shared:
+
+- **One analyzer per kind of video.** Each analyzer would measure what that visualization shows (for night lights: how bright each region is and how it changes from year to year) and declare what each measure means and its caveats.
+- **A common feature format.** The analyzers would write their measures to a shared format with musical roles (for example: what sets the chords, what sets the volume, what triggers accents), so the composer, the web player and the charts could work with any video without changes.
+- **Same honesty rules.** Measures taken from the pixels of a visualization would still be labelled as uncalibrated visual proxies, not scientific measurements.
+
 ## Structure
 
 ```
