@@ -10,6 +10,9 @@
 //   pulse     — latido de timbal (lub-dub) que se acelera con la temperatura
 //   ticks     — un tick al empezar cada década
 //   records   — una campanita al cerrar un año récord
+//
+// Reproducción: playRange({ from, to, yearDuration }) suena los años [from, to) y
+// devuelve una promesa que se resuelve con "finished" o "stopped".
 
 import * as Tone from "tone";
 import {
@@ -39,10 +42,12 @@ export function createEngine() {
   let graph = null;
   let track = null;
   let cfg = null;
-  let years = [];
+  let years = []; // [{ year, v, months, monthStart }]
   let recordSet = new Set();
   let yearDuration = 0.1597; // s por año: la velocidad original del vídeo (~25 s)
   let playing = false;
+  let run = null; // { resolve } de la reproducción en curso
+  let currentIndex = 0;
   const muted = new Set();
   const listeners = { year: [], end: [] };
 
@@ -139,6 +144,12 @@ export function createEngine() {
     };
   }
 
+  async function ensureGraph() {
+    await Tone.start();
+    if (!graph) graph = await buildGraph();
+    applyMutes();
+  }
+
   function applyMutes() {
     if (!graph) return;
     for (const name of LAYERS) graph.layers[name].mute = muted.has(name);
@@ -155,36 +166,55 @@ export function createEngine() {
     ];
   }
 
-  function schedule() {
+  function resetParam(param, value, time) {
+    param.cancelScheduledValues(time);
+    param.setValueAtTime(value, time);
+  }
+
+  function fadeEnv(param, to, seconds, now) {
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(param.value, now);
+    param.linearRampToValueAtTime(to, now + seconds);
+  }
+
+  function pulseHit(time, v) {
+    const vel = 0.35 + 0.55 * intensity(v, cfg);
+    graph.pulse.triggerAttackRelease("C1", 0.3, time, vel);
+    graph.pulse.triggerAttackRelease("C1", 0.2, time + 0.12, vel * 0.6);
+  }
+
+  /** Programa los años [from, to) en el Transport, empezando en el segundo 0. */
+  function schedule(from, to, yd) {
     const transport = Tone.getTransport();
     const draw = Tone.getDraw();
     const g = graph;
-    const yd = yearDuration;
     const monthDur = yd / 12;
-    let monthIndex = 0;
+    const slice = years.slice(from, to);
 
-    years.forEach((year, yi) => {
-      const t0 = yi * yd;
-      const months = track.series.slice(monthIndex, monthIndex + year.months);
-      const firstMonthIndex = monthIndex;
-      monthIndex += year.months;
-      const k = intensity(year.v, cfg);
+    slice.forEach((year, k) => {
+      const yi = from + k;
+      const t0 = k * yd;
+      const months = track.series.slice(year.monthStart, year.monthStart + year.months);
+      const loud = intensity(year.v, cfg);
 
       transport.schedule((time) => {
         const midi = noteFor(year.v, yi, cfg);
         // Crescendo: la melodía suena más fuerte cuanto más calor.
-        g.melody.triggerAttackRelease(midiToFreq(midi), yd * 0.9, time, 0.45 + 0.45 * k);
+        g.melody.triggerAttackRelease(midiToFreq(midi), yd * 0.9, time, 0.45 + 0.45 * loud);
         if (year.year % 10 === 0) g.tick.triggerAttackRelease(0.05, time, 0.8);
         for (const [param, value] of continuousTargets(year.v)) {
           param.linearRampToValueAtTime(value, time + yd);
         }
-        draw.schedule(() => emit("year", { year: year.year, value: year.v, index: yi }), time);
+        draw.schedule(() => {
+          currentIndex = yi;
+          emit("year", { year: year.year, value: year.v, index: yi });
+        }, time);
       }, t0);
 
       months.forEach((m, mi) => {
         transport.schedule((time) => {
           g.brightness.frequency.linearRampToValueAtTime(cutoffFor(m.v, cfg), time + monthDur);
-          const midi = noteFor(m.v, firstMonthIndex + mi, cfg);
+          const midi = noteFor(m.v, year.monthStart + mi, cfg);
           g.arp.triggerAttack(midiToFreq(midi + 12), time);
           // El primer mes del año va acentuado para que se oiga el compás.
           g.ostinato.triggerAttackRelease(midiToFreq(midi - 12), monthDur * 0.8, time, mi === 0 ? 0.9 : 0.5);
@@ -200,84 +230,89 @@ export function createEngine() {
     });
 
     // Latido "lub-dub": su tempo sigue a la temperatura, no a la velocidad elegida.
-    for (const { t, v } of pulseTimes(years, yd, cfg)) {
-      const vel = 0.35 + 0.55 * intensity(v, cfg);
-      transport.schedule((time) => {
-        g.pulse.triggerAttackRelease("C1", 0.3, time, vel);
-        g.pulse.triggerAttackRelease("C1", 0.2, time + 0.12, vel * 0.6);
-      }, t);
+    for (const { t, v } of pulseTimes(slice, yd, cfg)) {
+      transport.schedule((time) => pulseHit(time, v), t);
     }
 
-    const end = years.length * yd + 0.3;
-    transport.schedule((time) => draw.schedule(() => stop(true), time), end);
+    const end = slice.length * yd + 0.3;
+    transport.schedule((time) => draw.schedule(() => stop("finished"), time), end);
   }
 
-  function resetParam(param, value, time) {
-    param.cancelScheduledValues(time);
-    param.setValueAtTime(value, time);
-  }
+  async function playRange({ from = 0, to = years.length, yearDuration: yd = yearDuration } = {}) {
+    if (!track) return "stopped";
+    stop("stopped", { quick: true });
+    await ensureGraph();
 
-  function fadeEnv(param, to, seconds, now) {
-    param.cancelScheduledValues(now);
-    param.setValueAtTime(param.value, now);
-    param.linearRampToValueAtTime(to, now + seconds);
-  }
-
-  async function play() {
-    if (playing || !track) return;
-    await Tone.start();
-    if (!graph) graph = await buildGraph();
-    applyMutes();
+    from = Math.max(0, Math.min(years.length - 1, from));
+    to = Math.max(from + 1, Math.min(years.length, to));
+    currentIndex = from;
 
     const transport = Tone.getTransport();
     transport.cancel();
     transport.seconds = 0;
-    schedule();
+    schedule(from, to, yd);
 
     // Limpia las automatizaciones que pudieran quedar de una reproducción anterior.
     const now = Tone.now();
-    const first = years[0].v;
+    const first = years[from].v;
     resetParam(graph.brightness.frequency, cutoffFor(first, cfg), now);
     for (const [param, value] of continuousTargets(first)) resetParam(param, value, now);
-    fadeEnv(graph.droneEnv.gain, 1, 1.5, now);
+    fadeEnv(graph.droneEnv.gain, 1, from === 0 ? 1.5 : 0.4, now);
 
     transport.start(now + 0.1);
     playing = true;
+    return new Promise((resolve) => {
+      run = { resolve, to };
+    });
   }
 
-  function stop(finished = false) {
+  function stop(status = "stopped", { quick = false } = {}) {
     if (!playing) return;
     const transport = Tone.getTransport();
     transport.stop();
     transport.cancel();
     const now = Tone.now();
     graph.melody.releaseAll(now);
-    fadeEnv(graph.droneEnv.gain, 0, finished ? 3.5 : 0.8, now);
+    const fade = status === "finished" ? 3.5 : quick ? 0.15 : 0.8;
+    fadeEnv(graph.droneEnv.gain, 0, fade, now);
     playing = false;
-    if (finished) emit("end");
+    const current = run;
+    run = null;
+    if (status === "finished") emit("end", { reachedEnd: current?.to === years.length });
+    current?.resolve(status);
   }
 
   return {
     load(newTrack, overrides = {}) {
+      stop("stopped", { quick: true });
       track = newTrack;
       cfg = configFromTrack(track, overrides);
-      years = yearlyMeans(track.series);
+      let monthStart = 0;
+      years = yearlyMeans(track.series).map((y) => {
+        const withStart = { ...y, monthStart };
+        monthStart += y.months;
+        return withStart;
+      });
       recordSet = new Set(track.records);
+      currentIndex = 0;
     },
-    play,
-    stop: () => stop(false),
+    playRange,
+    stop: () => stop("stopped"),
     get playing() {
       return playing;
+    },
+    get currentIndex() {
+      return currentIndex;
+    },
+    get years() {
+      return years;
     },
     get yearDuration() {
       return yearDuration;
     },
-    /** Segundos por año. Se aplica en la siguiente reproducción. */
+    /** Segundos por año para el modo Historia. */
     setYearDuration(seconds) {
       yearDuration = seconds;
-    },
-    totalDuration() {
-      return years.length * yearDuration;
     },
     setLayer(name, enabled) {
       if (enabled) muted.delete(name);

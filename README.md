@@ -85,8 +85,8 @@ docs/        proceso creativo, decisiones y tests de escucha
 - [x] Paso 2 — Pipeline de datos
 - [x] Paso 3 — Primer sonido
 - [ ] Paso 4 — Test a ciegas y ajuste
-- [ ] Paso 5 — Vídeo y sincronía
-- [ ] Paso 6 — Interfaz accesible y modos
+- [x] Paso 5 — Vídeo y sincronía
+- [x] Paso 6 — Interfaz accesible y modos
 - [ ] Paso 7 — Capa de frames y validación
 - [ ] Paso 8 — Pistas extra (opcional)
 - [ ] Paso 9 — Publicación

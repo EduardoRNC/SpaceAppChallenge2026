@@ -8,7 +8,7 @@
 
 1. Abre la página y activa **"Prueba a ciegas"** en Ajustes. Usa la velocidad **Original del vídeo** (~25 s) con todas las capas activadas.
 2. Quien escucha no debe ver la pantalla. Lo mejor es que cierre los ojos o se dé la vuelta, con auriculares o altavoces a volumen cómodo.
-3. **No le digas qué fenómeno es.** Solo léele esta leyenda, que simula la leyenda sonora del Paso 6:
+3. **No le digas qué fenómeno es.** Solo léele esta leyenda:
 
 > "Vas a escuchar unos 25 segundos de datos de la Tierra, desde 1880 hasta hoy. La nota grave y constante es el valor normal. Una melodía más aguda significa un valor más alto. Si suena una campanita, ese año batió un récord."
 

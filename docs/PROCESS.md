@@ -69,6 +69,35 @@ Lo que revelaron los datos y cómo influye en el diseño:
 - **Disonancia sin distorsión:** el cluster (Re♭ desde +0.4 °C, Fa♯ desde +0.8 °C) se hace con ondas triangulares filtradas. Re♭3 contra Do3 produce un batido de unos 8 Hz: tensión por roce, no por suciedad.
 - **Eliminado** (fuentes de distorsión): sierras desafinadas, ruido del "viento" y compresor.
 
+## Accesibilidad e interfaz (Paso 6)
+
+**Modos:**
+- **Historia:** de 1880 a hoy, con la espiral. Las flechas ←/→ saltan una década; si está detenida, eligen el año de inicio.
+- **Explorar:** un año a 3 s, de modo que sus 12 meses suenan a 0.25 s cada uno y se oyen como melodía. Antes se dice el valor exacto. Se elige con flechas o con un deslizador nativo (`input type=range` con `aria-valuetext`).
+- **Comparar:** la década de 1880 frente a la de 2010, con narración y la diferencia final dicha en voz.
+
+**Sin voz y sin leyenda interactiva (decisiones tras probarlas).**
+
+1. **Voz sintetizada.** La primera versión usaba la voz del navegador (Web Speech API) para una leyenda sonora (tecla L), los valores (tecla V) y la narración de Comparar. Se descartó porque sonaba robótica, tardaba demasiado en explicar y quitaba atención a la música.
+2. **Leyenda y valor sin voz.** La segunda versión mostraba frases cortas mientras sonaba cada ejemplo, y V mostraba el valor. Tampoco convenció, así que **L y V se eliminaron**.
+
+**Resultado:** la experiencia se centra en la música. El significado de cada sonido queda en la lista "Cómo escucharlo" de la página, que es HTML semántico y accesible con lector de pantalla. Los mensajes breves (cambio de modo, año elegido en Explorar, resultado de Comparar) siguen yendo a una región `aria-live`, para que el lector de pantalla del usuario los lea con su propia voz. Mientras suena la Historia no se anuncia nada: la música manda.
+
+**Teclado:**
+- Espacio, ←/→, ↑/↓, M y H.
+- Los atajos no interceptan las teclas que ya usa el control enfocado: Espacio en un botón, flechas en un radio o en el deslizador.
+- Visible en la página como lista `<dl>`.
+
+**Movimiento reducido:** con `prefers-reduced-motion` el vídeo no se anima; muestra el fotograma del año y se actualiza una vez por década.
+
+**Verificación automática:**
+- **axe-core 4.10** sobre el HTML (jsdom): 0 violaciones y 39 reglas superadas. Avisos revisados a mano:
+  - landmark `main` y `h1`: existen; es una limitación de jsdom;
+  - subtítulos del vídeo: no aplica, el vídeo no tiene audio;
+  - varias etiquetas en un campo: falso positivo, los radios van dentro de su `<label>`.
+- **Contraste WCAG**, calculado: todos los pares superan AAA (≥ 7:1). Texto 17.2:1, secundario 10.4:1, acento y botón 10.6:1, foco 13.1:1.
+- **Lighthouse:** no se pudo ejecutar porque no hay Chrome en el equipo de desarrollo. Se sustituye por axe-core más la revisión manual con teclado y con el lector Orca.
+
 ## Vídeo y calibración
 
 Vídeo: [SVS 5190](https://svs.gsfc.nasa.gov/5190/), versión en español en °C. El original es de 2160×2160, 60 fps y 30 s (1800 frames). Para la web se convierte a 1080×1080 con `scripts/prepare_video.py`.

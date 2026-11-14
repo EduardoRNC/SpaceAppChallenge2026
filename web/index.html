@@ -14,12 +14,37 @@
     <a class="skip-link" href="#main">Saltar al contenido</a>
     <header>
       <h1>La espiral que suena</h1>
-      <p>El calentamiento global desde 1880, para escuchar.</p>
+      <p>
+        El calentamiento global desde 1880, para escuchar. Pulsa <kbd>Espacio</kbd> para
+        reproducir.
+      </p>
     </header>
+
     <main id="main">
-      <section aria-labelledby="track-title">
+      <section aria-labelledby="track-title" class="player">
+        <div class="field">
+          <label for="track">Pista del jukebox</label>
+          <select id="track"></select>
+        </div>
+
         <h2 id="track-title">Cargando…</h2>
         <p id="track-description"></p>
+
+        <fieldset class="modes">
+          <legend>Modo</legend>
+          <label>
+            <input type="radio" name="mode" value="history" checked />
+            <span><strong>Historia</strong>: de 1880 a hoy, con la espiral.</span>
+          </label>
+          <label>
+            <input type="radio" name="mode" value="explore" />
+            <span><strong>Explorar</strong>: elige un año y escucha sus 12 meses despacio.</span>
+          </label>
+          <label>
+            <input type="radio" name="mode" value="compare" />
+            <span><strong>Comparar</strong>: la década de 1880 frente a la de 2010.</span>
+          </label>
+        </fieldset>
 
         <figure class="spiral">
           <video id="spiral" muted playsinline preload="auto" aria-describedby="spiral-desc"></video>
@@ -40,8 +65,17 @@
           <span id="value"></span>
         </div>
 
-        <button id="play" type="button" disabled>Reproducir</button>
+        <div id="explore-panel" class="field" hidden>
+          <label for="year-slider">Año a explorar</label>
+          <input id="year-slider" type="range" step="1" />
+        </div>
+
+        <div class="buttons">
+          <button id="play" type="button" class="primary" disabled>Reproducir</button>
+        </div>
+
         <p id="status" role="status" aria-live="polite"></p>
+        <p id="announce-log" class="announce-log"></p>
       </section>
 
       <section aria-labelledby="legend-title">
@@ -72,14 +106,19 @@
         </ul>
       </section>
 
+      <section aria-labelledby="keys-title">
+        <h2 id="keys-title">Atajos de teclado</h2>
+        <dl id="shortcuts" class="shortcuts"></dl>
+      </section>
+
       <section aria-labelledby="settings-title">
         <h2 id="settings-title">Ajustes</h2>
         <fieldset>
-          <legend>Velocidad (se aplica al volver a reproducir)</legend>
-          <label><input type="radio" name="speed" value="0.1597" checked /> Original del vídeo (~25 s)</label>
-          <label><input type="radio" name="speed" value="0.41" /> Pausada (~1 min)</label>
-          <label><input type="radio" name="speed" value="1" /> Lenta (~2.5 min)</label>
+          <legend>Velocidad de la Historia</legend>
           <label><input type="radio" name="speed" value="2" /> Muy lenta (~5 min)</label>
+          <label><input type="radio" name="speed" value="1" /> Lenta (~2.5 min)</label>
+          <label><input type="radio" name="speed" value="0.41" /> Pausada (~1 min)</label>
+          <label><input type="radio" name="speed" value="0.1597" checked /> Original del vídeo (~25 s)</label>
         </fieldset>
         <fieldset>
           <legend>Prueba de escucha</legend>
@@ -100,10 +139,12 @@
         </fieldset>
       </section>
     </main>
+
     <footer>
       <p>
         Datos: NASA GISS (GISTEMP v4). Visualización: NASA Scientific
-        Visualization Studio. Proyecto para NASA Space Apps Challenge 2026.
+        Visualization Studio. Proyecto para NASA Space Apps Challenge 2026. No está
+        respaldado por NASA.
       </p>
     </footer>
     <script type="module" src="./src/main.js"></script>
