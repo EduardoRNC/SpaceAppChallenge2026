@@ -8,42 +8,71 @@ Ejemplo de referencia: `ecco2_sst_flow.mp4` (corrientes + temperatura del mar, S
 ## Instalar y correr
 
 ```bash
-pip install -r requirements.txt        # numpy, scipy, opencv-python (+ ffmpeg en el sistema)
-./run.sh ecco2_sst_flow.mp4 oceano     # ~1-2 min
+# desde la raíz del repo (Python 3.10+; ffmpeg en el sistema)
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt -r video_jukebox/requirements.txt
+cd video_jukebox
+PATH="../.venv/bin:$PATH" ./run.sh ecco2_sst_flow.mp4 oceano     # ~1-2 min
 ```
 
-Salida en `out/`:
-- `oceano.mid`: abrir en un DAW (Reaper, LMMS, Ardour) con una instancia de Dexed por pista
-- `oceano_preview.mp4`: el video con un sintetizador FM sencillo (no es Dexed, solo para comprobar)
+Salida en `out/` (no se sube a git):
+
+| Archivo | Para qué |
+|---|---|
+| `oceano_features.npz` | características por frame y franja (paso 1) |
+| `oceano.mid` | abrir en un DAW (Reaper, LMMS, Ardour) con una instancia de Dexed por pista |
+| `oceano_events.json` | notas en beats, tal como las generó el compositor (para el preview) |
+| `oceano_timeline.json` | características + notas en segundos, validadas, **para la interfaz web** |
+| `oceano_preview.wav` | audio del sintetizador FM sencillo (no es Dexed, solo para comprobar) |
+| `oceano_preview.mp4` | el video con ese audio |
 
 O paso a paso:
 ```bash
 python analyze.py video.mp4 features.npz
 python compose.py features.npz salida.mid --events events.json
+python export_timeline.py features.npz events.json timeline.json --source video.mp4
 python render_preview.py events.json preview.wav
 ```
 
-## Cómo funciona (3 pasos)
+### Probar sin video de NASA
+
+```bash
+python tests/synthetic.py /tmp/sintetico.avi --seconds 8   # mapa falso con líneas de color
+PATH="../.venv/bin:$PATH" ./run.sh /tmp/sintetico.avi sintetico
+cd .. && .venv/bin/pytest                                  # tests de datos + jukebox
+```
+
+Los tests (`tests/test_export_timeline.py`) usan solo datos sintéticos: características generadas
+y un video MJPG pequeño creado al vuelo. Comprueban que el timeline tiene 5 regiones y 4 canales,
+que el tiempo de cada nota es `beat × 60 / BPM` y coincide con los ticks del MIDI escrito, y que la
+validación rechaza dimensiones, FPS o pares features/events incoherentes.
+
+## Cómo funciona (4 pasos)
 
 ```
 video.mp4 ──► analyze.py ──► features.npz ──► compose.py ──► salida.mid ──► Dexed
-              (QUÉ pasa)     (números por       (CÓMO suena)        └─► render_preview.py (preview)
-                              frame y franja)
+              (QUÉ pasa)     (números por       (CÓMO suena)  events.json ──► render_preview.py (preview)
+                              frame y franja)        │              │
+                                    └────────────────┴──► export_timeline.py ──► timeline.json (web)
 ```
 
 ### 1. `analyze.py`: qué pasa en el video
 Divide el mapa en 5 franjas de latitud (ártico, norte medio, trópicos, sur medio, antártico).
 En cada frame y en cada franja mide:
 
-| Medida | Cómo | Qué significa |
+| Medida | Cómo | Qué es (proxy visual) |
 |---|---|---|
-| `temp` | color del píxel (azul=0 … rojo=1) | temperatura del mar |
-| `speed` | flujo óptico (OpenCV Farneback) | velocidad de la corriente |
-| `u`, `v` | componentes del flujo | dirección (este/oeste, norte/sur) |
-| `vort` | rotacional del flujo | remolinos / turbulencia |
-| `cover` | % de píxeles válidos | cuánto océano hay en la franja |
+| `temp` | tono del píxel (azul=0 … rojo=1) | posición en la paleta de color; sugiere temperatura, **no son °C** |
+| `speed` | flujo óptico (OpenCV Farneback), px/frame | movimiento aparente de las líneas, **no m/s** |
+| `u`, `v` | componentes del flujo, px/frame | dirección aparente (este/oeste, norte/sur) |
+| `vort` | rotacional del flujo | remolinos aparentes en la imagen, no vorticidad física |
+| `cover` | % de píxeles válidos | cuántos píxeles coloreados hay en la franja (no es % de océano real) |
 
 La tierra (gris) y el fondo oscuro se ignoran con una máscara de saturación/brillo.
+Todas son medidas **derivadas de píxeles**: dependen de la paleta, la compresión, la resolución
+de análisis (`--width`) y la velocidad de la animación. Sirven para que la música siga lo que se ve,
+no como datos científicos calibrados. Si una franja tiene menos de `MIN_PIXELS` (50) píxeles válidos
+sus medidas quedan a 0; `band_pixels` (píxeles por franja) permite distinguir ese caso de un 0 real.
 
 ### 2. `compose.py`: cómo suena
 - **Director armónico:** el contraste térmico norte−sur (las estaciones) elige los acordes,
@@ -64,6 +93,30 @@ Todo lo que se puede ajustar está en el bloque **CONFIGURACIÓN** al principio 
 
 ### 3. `render_preview.py`: escuchar sin Dexed
 Sintetizador FM de 2 operadores (el principio del DX7) + reverb. Solo para comprobar el mapeo.
+
+### 4. `export_timeline.py`: datos para la web
+Junta `features.npz` y `events.json` en un JSON con todo en segundos:
+
+| Clave | Contenido |
+|---|---|
+| `timing` | `fps`, `frames`, `bpm`, `seconds_per_beat`, `frames_per_beat`, `beats`, `bars`, duraciones de video y música |
+| `regions` | las 5 franjas con sus latitudes |
+| `channels` | los 4 canales (`temperatura`, `corrientes`, `remolinos`, `ecuatorial`) con canal MIDI y programa DX7 |
+| `features.t` | tiempo de cada frame: `(fila + 1) / fps` (la fila 0 es el frame 1: el flujo óptico necesita dos frames) |
+| `features.metrics` | por medida: `unit`, `derived_from`, `caveat`, `nature: "visual_proxy"`, `calibrated: false` y `by_region` = una serie por franja (`null` = sin dato) |
+| `notes` | `t`, `dur` (s), `beat`, `dur_beats`, `channel`, `track`, `note`, `vel`; `t = beat × 60 / bpm`, igual que el MIDI |
+| `chords`, `cc` | acorde de cada compás y controladores (CC1 timbre, CC11 expresión), con su `t` |
+| `validation` | `status` (`ok` / `warnings`), lista de avisos y resumen numérico |
+
+**Validación.** Aborta (código de salida 1, no escribe nada) si faltan medidas, las formas no son
+`(frames, 5)`, las regiones no son las de `analyze.py`, el FPS o el BPM no son válidos, o si
+`events.json` no sale de ese `features.npz` (su `fpb`/`nbeats` no cuadran). Avisa, sin abortar, de:
+frames sin dato o valores no finitos (se exportan como `null`), cobertura media < 2 %, deriva
+música-video, frames por beat impares y notas que empiezan después del final.
+
+**Deriva música-video.** `compose.py` redondea `fps × 60 / bpm` a frames enteros por beat. A 30 fps y
+90 BPM es exacto (20); a 29.97 fps la música se desfasa ~0.06 s por minuto y a 25 fps ~1.2 s por minuto
+(17 frames por beat, además impar). `notes[].t` sigue el reloj del audio; `features.t` el del video.
 
 ## Cómo añadir otro tipo de video (luces, CO2, viento, hielo…)
 

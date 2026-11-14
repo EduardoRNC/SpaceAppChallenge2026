@@ -27,6 +27,9 @@ BANDS = [
     ("antartico",   -60, -90),
 ]
 
+# Por debajo de este número de píxeles válidos la franja se deja a 0 (sin dato).
+MIN_PIXELS = 50
+
 
 def band_rows(h):
     rows = []
@@ -98,7 +101,7 @@ def analyze(path, width=512):
             m = mask[r0:r1]
             cnt = int(m.sum())
             rec["cover"][b] = cnt / m.size
-            if cnt < 50:
+            if cnt < MIN_PIXELS:
                 continue
             rec["temp"][b] = temp[r0:r1][m].mean()
             rec["speed"][b] = mag[r0:r1][m].mean()
@@ -116,6 +119,7 @@ def analyze(path, width=512):
     res = {k: np.stack(v) for k, v in out.items()}       # (frames, bands)
     res["fps"] = np.float32(fps)
     res["bands"] = np.array([b[0] for b in BANDS])
+    res["band_pixels"] = np.array([(r1 - r0) * width for r0, r1 in rows], np.int32)
     return res
 
 

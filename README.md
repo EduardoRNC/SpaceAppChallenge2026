@@ -68,7 +68,7 @@ python3 -m venv .venv
 .venv/bin/python scripts/prepare_video.py   # descarga la Climate Spiral y genera la versión web
 .venv/bin/python scripts/frame_features.py  # mide el color de los fotogramas + docs/validation.png
 .venv/bin/python scripts/build_tracks.py  # genera web/public/data/temperature.json
-.venv/bin/pytest                        # tests de datos
+.venv/bin/pytest                        # tests de datos y del video jukebox
 
 # Web
 cd web
@@ -82,6 +82,7 @@ npm run build    # versión para publicar (web/dist)
 
 ```
 scripts/     preparación de datos y frames (Python)
+video_jukebox/  video de NASA -> MIDI + timeline.json para la web (ver su README)
 data/raw/    CSV originales descargados
 web/         app web (Vite + Tone.js)
 docs/        proceso creativo, decisiones y tests de escucha
