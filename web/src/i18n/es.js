@@ -61,6 +61,7 @@ export default {
   },
   status: {
     loadingAudio: "Cargando pistas de audio…",
+    loadingVideo: "Cargando el vídeo…",
     loadingProgress: "Cargando pistas de audio… {done}/{total}",
     ready: "Listo. Pulsa Reproducir o la barra espaciadora.",
     end: "Fin. Pulsa Reproducir para empezar de nuevo.",
@@ -83,6 +84,9 @@ export default {
       unknown: "El vídeo dejó de funcionar. Pulsa Reintentar para seguir desde {time}.",
       reload: "El vídeo sigue sin responder. Comprueba la conexión y vuelve a pulsar Reintentar.",
     },
+    loadSlow:
+      "El vídeo está tardando mucho en cargar. Puede que aún llegue solo; pulsa Reintentar para pedirlo de nuevo.",
+    loadError: "No se pudo cargar el vídeo (error de red o archivo no encontrado). Comprueba la conexión y pulsa Reintentar.",
     retrying: "Volviendo a cargar el vídeo…",
     recovered: "El vídeo vuelve a estar listo: sigue la reproducción.",
     loadFailed: "La demo no pudo arrancar: {message}. Comprueba la conexión y recarga la página.",
@@ -91,7 +95,6 @@ export default {
   },
   errors: {
     fetch: "no se pudo cargar {url} (HTTP {status})",
-    video: "no se pudo cargar el vídeo",
     shortStems: "pistas de audio más cortas de lo esperado: {ids}",
     manifest: "manifiesto de activos no válido: {problems}",
     timeline: "timeline no válido: {problems}",

@@ -233,6 +233,18 @@ test("mensajes de error en inglés y en español", () => {
   assert.equal(es.t("errors.fetch", { url: "a.json", status: 404 }), "no se pudo cargar a.json (HTTP 404)");
 });
 
+test("aviso de carga inicial del vídeo en inglés y en español, con el nombre del botón", () => {
+  for (const [lang, retry] of [["en", "Retry"], ["es", "Reintentar"]]) {
+    const i18n = createI18n({ lang });
+    assert.equal(i18n.t("notice.retry"), retry);
+    for (const key of ["notice.loadSlow", "notice.loadError"]) {
+      assert.ok(i18n.t(key).includes(retry), `${lang} ${key}`);
+    }
+    assert.ok(i18n.t("status.loadingVideo"));
+  }
+  assert.match(createI18n({ lang: "es" }).t("notice.loadSlow"), /vídeo/);
+});
+
 test("cambiar de idioma solo reescribe textos: no toca el reproductor, el transporte ni el vídeo", () => {
   const main = readFileSync(`${SRC}jukebox/main.js`, "utf8");
   const body = (name) => {
@@ -250,4 +262,5 @@ test("cambiar de idioma solo reescribe textos: no toca el reproductor, el transp
   assert.doesNotMatch(text, /\b(player|transport|follower)\.(?!playing\b|position\()\w+\s*\(/, "sin llamadas al reproductor (solo leer la posición)");
   assert.doesNotMatch(text, /el\.video|\.currentTime|\.play\(|\.pause\(/, "sin tocar el vídeo");
   assert.match(body("applyLanguage"), /documentElement\.lang = i18n\.lang/);
+  assert.match(body("applyLanguage"), /el\.time\.textContent = /, "el reloj usa el decimal del idioma también antes de cargar");
 });

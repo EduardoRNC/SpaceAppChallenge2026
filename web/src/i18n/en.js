@@ -61,6 +61,7 @@ export default {
   },
   status: {
     loadingAudio: "Loading audio tracks…",
+    loadingVideo: "Loading the video…",
     loadingProgress: "Loading audio tracks… {done}/{total}",
     ready: "Ready. Press Play or the space bar.",
     end: "End. Press Play to start again.",
@@ -83,6 +84,9 @@ export default {
       unknown: "The video stopped working. Press Retry to continue from {time}.",
       reload: "The video still does not respond. Check your connection and press Retry again.",
     },
+    loadSlow:
+      "The video is taking a long time to load. It may still arrive on its own; press Retry to request it again.",
+    loadError: "The video could not be loaded (network error or missing file). Check your connection and press Retry.",
     retrying: "Reloading the video…",
     recovered: "The video is ready again: playback continues.",
     loadFailed: "The demo could not start: {message}. Check your connection and reload the page.",
@@ -91,7 +95,6 @@ export default {
   },
   errors: {
     fetch: "could not load {url} (HTTP {status})",
-    video: "the video could not be loaded",
     shortStems: "audio tracks shorter than expected: {ids}",
     manifest: "invalid asset manifest: {problems}",
     timeline: "invalid timeline: {problems}",

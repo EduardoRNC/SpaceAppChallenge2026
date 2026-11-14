@@ -5,6 +5,7 @@ import { createTransport } from "./transport.js";
 import { createFollower } from "./follower.js";
 import { createPlayer } from "./player.js";
 import { watchVideo } from "./watchdog.js";
+import { waitFirstFrame } from "./videoload.js";
 import { shortcutFor } from "./keys.js";
 import { videoTarget } from "./clock.js";
 import { gains, initialStates, reset, toggle } from "./mix.js";
@@ -402,6 +403,7 @@ function applyLanguage() {
   updatePlayButton();
   el.status.textContent = status();
   renderNotice();
+  if (!transport) el.time.textContent = `${time(0)} / ${time(manifest?.audio.duration_s ?? 0)}`;
   if (!manifest) return;
   el.title.textContent = i18n.data("data.title", manifest.title);
   renderCredits();
@@ -423,7 +425,15 @@ function bindLanguage() {
 async function init() {
   window.jukeboxDebug = { i18n };
   bindLanguage();
-  el.retry.addEventListener("click", () => (notice?.action === "reload" ? location.reload() : player?.retry()));
+  let videoLoad = null;
+  el.retry.addEventListener("click", () => {
+    if (notice?.action === "reload") return location.reload();
+    if (notice?.action === "load") {
+      showNotice(() => t("notice.retrying"), null);
+      return videoLoad.retry();
+    }
+    player?.retry();
+  });
   try {
     const base = document.baseURI;
     manifest = await (await fetch(assetUrl(MANIFEST, base))).json();
@@ -433,9 +443,11 @@ async function init() {
     applyLanguage();
 
     el.video.src = assetUrl(manifest.video.src, base);
-    const videoReady = new Promise((resolve, reject) => {
-      el.video.addEventListener("loadeddata", resolve, { once: true });
-      el.video.addEventListener("error", () => reject(new UiError(() => t("errors.video"))), { once: true });
+    videoLoad = waitFirstFrame(el.video, {
+      onProblem: (why) => {
+        if (notice?.action === "reload") return;
+        showNotice(() => t(why === "timeout" ? "notice.loadSlow" : "notice.loadError"), "load");
+      },
     });
 
     const timelineReady = fetch(assetUrl(manifest.timeline.src, base)).then((res) => {
@@ -464,7 +476,9 @@ async function init() {
     if (timelineProblems.length) {
       throw new UiError(() => t("errors.timeline", { problems: problemsText(i18n, "timeline", timelineProblems) }));
     }
-    await videoReady;
+    if (!videoLoad.loaded) say(() => t("status.loadingVideo"));
+    await videoLoad.promise;
+    if (notice) hideNotice();
 
     transport = createTransport(ctx, stems, manifest.audio.duration_s);
     follower = createFollower(el.video, transport, manifest.video.fps);
