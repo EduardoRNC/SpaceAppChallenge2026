@@ -154,10 +154,16 @@ Conclusiones:
 2. **La mejora temporal de `s6` se explica por el suavizado**: una media móvil de 6 frames sobre
    el método actual da las mismas métricas, y el ruido blanco suavizado aún sale "más suave".
    Estas métricas no prueban que se recupere señal.
-3. **Lo que sí cambia `s6` es el nivel**: reduce la media un 37 % (el sesgo positivo del ruido en
-   la magnitud), sobre todo en los polos (ártico −44 %, trópicos −21 %). Con `s6` los trópicos pasan
-   a ser la región más rápida, un orden más plausible.
-4. Para saber si hay variación de flujo recuperable hace falta un material sin compresión (abajo).
+3. **Lo que sí cambia `s6` es el nivel**: reduce la media un 37 %, sobre todo en los polos
+   (ártico −44 %, trópicos −21 %), y los trópicos pasan a ser la región más rápida. Los frames TIFF
+   sin compresión muestran la misma caída (0.0271 → 0.0163), así que no es un sesgo del códec sino
+   vibración frame a frame de la animación o del estimador.
+4. Comparación con los frames TIFF originales sin compresión (`compare_lossless.py`, frames
+   960–1056): a paso 1 la variación del MP4 es casi toda artefacto (su serie de speed correlaciona
+   0.04–0.19 con la del TIFF; picos en fotogramas clave 1.60 frente a 1.00); a paso 6 el TIFF tiene
+   estructura temporal (autocorrelación 0.58) y el MP4 la recupera en parte (0.35–0.48 en speed,
+   0.45–0.92 en u). La dirección media coincide en ambas fuentes y el índice de color difiere como
+   mucho 0.033.
 
 ## 6. Contaminación por textos, leyendas y máscaras
 
@@ -216,9 +222,9 @@ Desfases que siguen existiendo (por diseño):
 
 ## 8. Pendiente y propuestas (no implementadas)
 
-1. **Prueba definitiva del flujo:** repetir `flow_experiment.py` sobre un segmento de los frames PNG
-   originales del SVS (`frames/2048x1024_1x1_30p/orig/`, sin compresión de video). Si `s1` deja de
-   tener autocorrelación negativa, el ruido es del códec y merece la pena cambiar `analyze.py`.
+1. **Flujo a escala de la música:** la comparación con TIFF (punto 5) cubre solo 3.2 s. Para
+   validar la escala que usa la música (suavizado de 1 s, beats de 20 frames) hace falta un tramo
+   TIFF ≥ 20 s (≥ 600 frames, ~3.8 GB) antes de pasar `analyze.py` a flujo con paso 6.
 2. Mientras tanto, en la demo, presentar las voces `corrientes` y `remolinos` como textura
    (no como dato fiel) o bajar su peso; el bajo puede seguir la dirección media de `u` en trópicos.
 3. Ponderar por `cos(latitud)` y excluir |lat| > 84°.

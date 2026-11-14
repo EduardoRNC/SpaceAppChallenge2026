@@ -328,6 +328,18 @@ def test_flow_experiment_stride1_matches_analyze(tmp_path):
     assert np.isnan(sn[:5]).all() and not np.isnan(sn[5:]).any()
 
 
+def test_compare_lossless_helpers():
+    import compare_lossless as cl
+    lv = cl.video_levels(np.array([[[0, 128, 255]]], np.uint8))
+    assert lv.tolist() == [[[16, 126, 235]]]
+    rng = np.random.default_rng(0)
+    base = [rng.standard_normal((32, 64)).cumsum(1) for _ in range(30)]
+    noisy = [b + 0.3 * rng.standard_normal(b.shape) for b in base]
+    al = cl.alignment(base, noisy[1:] + noisy[:1])        # MP4 adelantado un frame
+    assert max(al, key=al.get) == -1
+    assert max(cl.alignment(base, noisy).items(), key=lambda kv: kv[1])[0] == 0
+
+
 def test_diagnostics_plots(tmp_path, timeline):
     import cv2
     import diagnostics
