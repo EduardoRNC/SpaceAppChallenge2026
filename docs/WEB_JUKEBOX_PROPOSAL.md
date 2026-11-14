@@ -75,7 +75,7 @@ Un script `video_jukebox/build_web.py` que, a partir de `out/<nombre>_*`, escrib
 | `web/public/data/jukebox/ecco2.json` | manifiesto: rutas, créditos NASA, colores, instrumentos y fechas del modelo | 4 KB |
 
 Implementado (pasos 1–3 del plan); detalles y comandos en
-[`video_jukebox/README.md`](../video_jukebox/README.md#activos-para-la-web-build_webpy). Con CRF el
+[`video_jukebox/README.es.md`](../video_jukebox/README.es.md#activos-para-la-web-build_webpy). Con CRF el
 video pesaba 27–47 MB, por eso se codifica a tasa fija. Los stems van a 128 kbps; la campana
 (`remolinos`, espectro FM denso) queda con SNR 13 dB frente al WAV y no mejora mucho a 192 kbps
 (14.9 dB): falta una escucha atenta para decidir si es audible.

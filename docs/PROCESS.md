@@ -4,7 +4,7 @@ Aquí se documenta el porqué de cada decisión y los resultados de las pruebas.
 
 ## Decisiones de diseño
 
-- **Frase guía y mapeo v1:** ver [README](../README.md).
+- **Frase guía y mapeo v1:** ver [README](../README.es.md).
 
 ## Datos (Paso 2)
 
