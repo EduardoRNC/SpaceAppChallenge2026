@@ -111,6 +111,61 @@ Todo lo que se puede ajustar está en el bloque **CONFIGURACIÓN** al principio 
 ### 3. `render_preview.py`: escuchar sin Dexed
 Sintetizador FM de 2 operadores (el principio del DX7) + reverb. Solo para comprobar el mapeo.
 
+```bash
+python render_preview.py events.json preview.wav --stems out/stems   # mezcla + 4 pistas
+```
+
+Con `--stems DIR` escribe además `DIR/<pista>.wav` (`temperatura`, `corrientes`, `remolinos`,
+`ecuatorial`) y `DIR/stems.json` (ganancia, picos y primera nota de cada pista). La mezcla
+`preview.wav` es idéntica byte a byte a la de antes. Los stems:
+
+- salen del mismo generador de voces que la mezcla: misma longitud, mismo comienzo (muestra 0)
+  y la primera nota de cada pista cae en la misma muestra que en la mezcla;
+- son lineales (sin la saturación `tanh` de la mezcla) y comparten **una sola ganancia**, elegida
+  para que ninguna de las 15 combinaciones de mute/solo pase de −1 dBFS; así se conserva el balance
+  entre instrumentos y la suma de los stems es la mezcla antes de saturar.
+
+Tests: `tests/test_render_preview.py`.
+
+## Activos para la web (`build_web.py`)
+
+Prepara la demo `web/jukebox.html` a partir de lo que ya generó `run.sh` (`out/<nombre>_events.json`
+y `out/<nombre>_timeline.json`) y del video original:
+
+```bash
+cd video_jukebox
+python build_web.py --name ecco2_full --video ../data/media/ecco2/ecco2_sst_flow.mp4 \
+    --dates ../data/media/ecco2/flat_ecco2_dates.txt          # ~30 s; --skip-video reutiliza el video
+python build_web.py --name ecco2_full --check-only            # solo valida lo ya escrito
+```
+
+Escribe en `web/public/` (estos archivos **sí** se suben a git, para GitHub Pages):
+
+| Archivo | Cómo | Tamaño (ECCO2) |
+|---|---|---|
+| `media/jukebox/ecco2.mp4` | H.264 1280×640, 2 pasadas a 1200 kb/s, GOP 30 (saltos rápidos), sin audio, `+faststart` | 10.0 MB |
+| `media/jukebox/ecco2_<pista>.m4a` ×4 | stems del preview FM, AAC 128 kb/s | 0.8–1.1 MB cada uno |
+| `data/jukebox/ecco2_timeline.json` | el timeline, minificado | 0.55 MB |
+| `data/jukebox/ecco2.json` | manifiesto: rutas relativas, duración, colores, instrumentos DX7, fechas del modelo, créditos NASA | 4 KB |
+
+Total 14.7 MB. Los WAV, el `.npz`, los videos originales y las figuras se quedan en `out/` y
+`data/media/` (ignorados por git).
+
+Antes de terminar valida y aborta si algo falla: rutas relativas y existentes (funcionan bajo
+`https://<usuario>.github.io/SpaceAppChallenge2026/`), FPS, frames y ausencia de audio en el video,
+que cada stem decodificado empiece en la misma muestra que el WAV (desfase 0) y no sea más corto que
+la música, que ninguna combinación de pistas sature, presupuestos de tamaño y créditos NASA/ECCO2.
+Imprime la calidad de cada stem (SNR frente al WAV). Tests: `tests/test_build_web.py` (video
+sintético de 6 s).
+
+Probar la demo:
+
+```bash
+cd web && npm ci
+npm run dev                         # http://localhost:5173/jukebox.html
+npm run build && npx vite preview --base /SpaceAppChallenge2026/   # como en GitHub Pages
+```
+
 ### 4. `export_timeline.py`: datos para la web
 Junta `features.npz` y `events.json` en un JSON con todo en segundos:
 
