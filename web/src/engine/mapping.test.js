@@ -7,6 +7,8 @@ import {
   SCALES,
   clusterLevels,
   cutoffFor,
+  frameTargets,
+  warmthRange,
   intensity,
   midiForStep,
   midiToFreq,
@@ -99,6 +101,17 @@ test("brillo: crece con la temperatura dentro de [cutoffMin, cutoffMax]", () => 
   assert.equal(Math.round(cutoffFor(cfg.range[0], cfg)), cfg.cutoffMin);
   assert.equal(Math.round(cutoffFor(cfg.range[1], cfg)), cfg.cutoffMax);
   assert.ok(cutoffFor(1.0, cfg) > cutoffFor(0, cfg));
+});
+
+test("capa de fotogramas: más cálido el color = más volumen y trémolo más rápido", () => {
+  const frames = [{ w: -0.2 }, { w: 0.1 }, { w: 0.66 }];
+  const range = warmthRange(frames);
+  assert.deepEqual(range, [-0.2, 0.66]);
+  const cold = frameTargets(-0.2, range);
+  const hot = frameTargets(0.66, range);
+  assert.ok(hot.level > cold.level && hot.tremoloHz > cold.tremoloHz);
+  assert.equal(hot.level, 1);
+  assert.equal(frameTargets(-5, range).level, cold.level); // fuera de rango se recorta
 });
 
 test("midiToFreq: A4 = 440 Hz, C4 ≈ 261.6 Hz", () => {

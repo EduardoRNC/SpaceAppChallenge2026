@@ -1,6 +1,7 @@
 import { createEngine } from "./engine/sonify.js";
 import { createVideoSync } from "./player/sync.js";
-import { createAnnouncer, spokenValue } from "./a11y/speech.js";
+import { createAnnouncer, createVoice, spokenValue } from "./a11y/speech.js";
+import { playIntro } from "./a11y/intro.js";
 import { SHORTCUTS, bindShortcuts } from "./a11y/keys.js";
 
 // Pistas del jukebox. Añadir una pista = añadir su JSON (ver README, Paso 8).
@@ -38,10 +39,12 @@ const els = {
   log: $("announce-log"),
   shortcuts: $("shortcuts"),
   blind: $("blind-mode"),
+  introToggle: $("intro-toggle"),
 };
 
 const engine = createEngine();
 const announcer = createAnnouncer({ liveRegion: els.status, visibleLog: els.log });
+const voice = createVoice(); // voz en inglés, solo para la intro
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 let track = null;
@@ -51,6 +54,8 @@ let historyStart = 0; // año (índice) desde el que empieza la Historia
 let exploreIndex = 0;
 let busy = false; // reproduciendo, comparando o en la leyenda
 let runId = 0; // cada acción nueva invalida a la anterior
+let introActive = false;
+let skipIntro = false;
 
 const years = () => engine.years;
 const indexOfYear = (y) => Math.max(0, years().findIndex((row) => row.year === y));
@@ -111,14 +116,35 @@ function setMode(newMode, { announce = true } = {}) {
 
 function stopAll() {
   runId++;
+  skipIntro = true;
+  voice.cancel();
+  engine.hush();
   engine.stop();
   sync?.stop();
   setBusy(false);
 }
 
-async function startHistory(from) {
+async function startHistory(from, { withIntro = false } = {}) {
   const id = ++runId;
   setBusy(true);
+  if (withIntro && els.introToggle.checked) {
+    // Intro breve en inglés: qué significa cada capa. El botón permite saltarla.
+    introActive = true;
+    skipIntro = false;
+    els.play.textContent = "Skip intro";
+    sync.showYear(0);
+    await playIntro({
+      engine,
+      voice,
+      captions: (text) => announcer.say(text),
+      isCancelled: () => skipIntro || id !== runId,
+    });
+    introActive = false;
+    voice.cancel();
+    engine.hush();
+    if (id !== runId) return;
+    els.play.textContent = "Detener";
+  }
   status(from === 0 ? "Reproduciendo desde 1880." : `Reproduciendo desde ${years()[from].year}.`);
   sync.startAt(from, engine.yearDuration);
   const result = await engine.playRange({ from });
@@ -172,12 +198,16 @@ async function runCompare() {
 }
 
 function toggle() {
+  if (introActive) {
+    skipIntro = true; // salta la intro y empieza la música
+    return;
+  }
   if (busy) {
     stopAll();
     status("Detenido.");
     return;
   }
-  if (mode === "history") startHistory(historyStart);
+  if (mode === "history") startHistory(historyStart, { withIntro: historyStart === 0 });
   else if (mode === "explore") playExploreYear();
   else runCompare();
 }

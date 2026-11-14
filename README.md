@@ -58,6 +58,8 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/check_env.py   # verifica el entorno
 .venv/bin/python scripts/fetch_data.py  # descarga GISTEMP a data/raw/
+.venv/bin/python scripts/prepare_video.py   # descarga la Climate Spiral y genera la versión web
+.venv/bin/python scripts/frame_features.py  # mide el color de los fotogramas + docs/validation.png
 .venv/bin/python scripts/build_tracks.py  # genera web/public/data/temperature.json
 .venv/bin/pytest                        # tests de datos
 
@@ -87,7 +89,7 @@ docs/        proceso creativo, decisiones y tests de escucha
 - [ ] Paso 4 — Test a ciegas y ajuste
 - [x] Paso 5 — Vídeo y sincronía
 - [x] Paso 6 — Interfaz accesible y modos
-- [ ] Paso 7 — Capa de frames y validación
+- [x] Paso 7 — Capa de frames y validación
 - [ ] Paso 8 — Pistas extra (opcional)
 - [ ] Paso 9 — Publicación
 - [ ] Paso 10 — Historia y entrega

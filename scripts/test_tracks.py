@@ -116,3 +116,21 @@ def test_generated_json_matches_builder(track):
     assert data["series"] == track["series"]
     assert data["range"] == track["range"]
     assert "***" not in path.read_text()
+
+
+# --- Validación con los fotogramas (Paso 7) -----------------------------------
+
+def test_frame_colour_matches_data(track):
+    """El color de la espiral en el vídeo sigue a los datos: r > 0.9."""
+    import numpy as np
+
+    warmth = track["frameWarmth"]
+    if warmth is None:
+        pytest.skip("ejecuta primero: python scripts/frame_features.py")
+    means = {}
+    for p in track["series"]:
+        means.setdefault(int(p["t"][:4]), []).append(p["v"])
+    w = np.array([row["w"] for row in warmth])
+    t = np.array([np.mean(means[row["year"]]) for row in warmth])
+    assert len(warmth) == len(means)
+    assert np.corrcoef(w, t)[0, 1] > 0.9

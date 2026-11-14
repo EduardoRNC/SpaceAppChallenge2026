@@ -14,3 +14,10 @@ test("valores para el lector de pantalla en español, con signo y coma decimal",
 test("todos los atajos tienen descripción", () => {
   for (const [key, desc] of SHORTCUTS) assert.ok(key && desc.length > 5, key);
 });
+
+test("la intro es breve y explica todas las capas", async () => {
+  const { INTRO_STEPS } = await import("./intro.js");
+  const expected = ["reference", "pitch", "months", "pulse", "tension", "frames", "record", "ticks"];
+  assert.deepEqual(INTRO_STEPS.map((s) => s.demo), expected);
+  for (const step of INTRO_STEPS) assert.ok(step.text.split(" ").length <= 8, step.text);
+});

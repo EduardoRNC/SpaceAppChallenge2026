@@ -103,6 +103,10 @@
           </li>
           <li><strong>Tick:</strong> empieza una década.</li>
           <li><strong>Campanita:</strong> ese año batió el récord de calor.</li>
+          <li>
+            <strong>Acorde agudo con trémolo:</strong> sale del color de la espiral en el
+            vídeo. Cuanto más rojo se dibuja cada vuelta, más fuerte suena y más rápido tiembla.
+          </li>
         </ul>
       </section>
 
@@ -121,6 +125,13 @@
           <label><input type="radio" name="speed" value="0.1597" checked /> Original del vídeo (~25 s)</label>
         </fieldset>
         <fieldset>
+          <legend>Intro</legend>
+          <label>
+            <input type="checkbox" id="intro-toggle" checked />
+            Breve explicación en inglés de cada capa antes de reproducir desde 1880 (~15 s)
+          </label>
+        </fieldset>
+        <fieldset>
           <legend>Prueba de escucha</legend>
           <label>
             <input type="checkbox" id="blind-mode" />
@@ -136,6 +147,7 @@
           <label><input type="checkbox" name="layer" value="pulse" checked /> Latido</label>
           <label><input type="checkbox" name="layer" value="ticks" checked /> Tick de década</label>
           <label><input type="checkbox" name="layer" value="records" checked /> Campanita de récord</label>
+          <label><input type="checkbox" name="layer" value="frames" checked /> Color de la espiral (trémolo)</label>
         </fieldset>
       </section>
     </main>

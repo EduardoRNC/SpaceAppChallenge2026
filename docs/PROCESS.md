@@ -81,6 +81,13 @@ Lo que revelaron los datos y cómo influye en el diseño:
 1. **Voz sintetizada.** La primera versión usaba la voz del navegador (Web Speech API) para una leyenda sonora (tecla L), los valores (tecla V) y la narración de Comparar. Se descartó porque sonaba robótica, tardaba demasiado en explicar y quitaba atención a la música.
 2. **Leyenda y valor sin voz.** La segunda versión mostraba frases cortas mientras sonaba cada ejemplo, y V mostraba el valor. Tampoco convenció, así que **L y V se eliminaron**.
 
+3. **Intro breve en inglés (versión final).** Se pidió recuperar la explicación con tres condiciones: que salga al pulsar Reproducir, que esté en inglés y que dure poco. Así funciona:
+   - Antes de la Historia desde 1880 suenan 8 frases de 4 a 7 palabras, una por capa ("Melody: higher means warmer.", "Heartbeat: faster means hotter."…).
+   - Cada frase se dice **a la vez** que suena su ejemplo, no después, así que la intro dura unos 15 s.
+   - Se puede saltar con el botón "Skip intro" o con Espacio, y desactivar en Ajustes.
+   - La página prefiere las voces más naturales del sistema (Google, Microsoft Natural, Samantha…). En Linux solo hay espeak-ng, que suena robótica; en Mac, Windows o Chrome la calidad es mucho mejor.
+   - La frase también aparece en pantalla y llega al lector de pantalla.
+
 **Resultado:** la experiencia se centra en la música. El significado de cada sonido queda en la lista "Cómo escucharlo" de la página, que es HTML semántico y accesible con lector de pantalla. Los mensajes breves (cambio de modo, año elegido en Explorar, resultado de Comparar) siguen yendo a una región `aria-live`, para que el lector de pantalla del usuario los lea con su propia voz. Mientras suena la Historia no se anuncia nada: la música manda.
 
 **Teclado:**
@@ -97,6 +104,27 @@ Lo que revelaron los datos y cómo influye en el diseño:
   - varias etiquetas en un campo: falso positivo, los radios van dentro de su `<label>`.
 - **Contraste WCAG**, calculado: todos los pares superan AAA (≥ 7:1). Texto 17.2:1, secundario 10.4:1, acento y botón 10.6:1, foco 13.1:1.
 - **Lighthouse:** no se pudo ejecutar porque no hay Chrome en el equipo de desarrollo. Se sustituye por axe-core más la revisión manual con teclado y con el lector Orca.
+
+## Capa de fotogramas y validación (Paso 7)
+
+**Objetivo:** demostrar que lo que se ve (los fotogramas de la Climate Spiral) y lo que se oye (los datos de GISTEMP) cuentan lo mismo, y sonificar los fotogramas directamente, como pide el reto.
+
+**Método** (`scripts/frame_features.py`):
+
+1. Se decodifica el vídeo a 540×540 con ffmpeg.
+2. Para cada año se toma el fotograma en el que termina de dibujarse y se compara con el del año anterior.
+3. Los píxeles que se iluminan dentro del anillo de la espiral son la **vuelta nueva**. Se excluyen el centro, donde está la etiqueta del año, y el borde, donde están los meses.
+4. Se mide su **calidez**: `signo(R − B) · (255 − G) / 255`.
+
+La primera medida, "rojez" (R − B), daba r = 0.92 pero **se saturaba desde el año 2000**: la paleta pasa de rojo a granate, se oscurece, y R − B deja de crecer. En cambio, el verde baja siempre al alejarse del blanco, hacia el azul o hacia el rojo, y el signo de R − B indica el lado, así que la calidez crece de forma monótona del azul al granate.
+
+**Resultado:** correlación entre la calidez de los píxeles y la anomalía anual **r = 0.96** en los 147 años. Hay un test (`pytest`) que exige r > 0.9.
+
+![Validación: calidez de los píxeles frente a GISTEMP](validation.png)
+
+**Limitación:** en 2023–2026 la estimación a partir de píxeles queda por debajo del dato. La paleta llega a su color más oscuro (no puede ser "más granate") y 2026 es un año incompleto, con menos píxeles nuevos.
+
+**Capa sonora "frames":** un acorde agudo y limpio (Do5–Sol5 en triángulo) con trémolo. La calidez del color de cada vuelta controla su volumen y la velocidad del trémolo, de 1.5 a 10 Hz: de un brillo tranquilo a una agitación. Es la única capa que sale de los **píxeles** y no del CSV.
 
 ## Vídeo y calibración
 

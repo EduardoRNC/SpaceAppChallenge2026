@@ -17,6 +17,7 @@ RAW_DIR = ROOT / "data" / "raw"
 OUT_DIR = ROOT / "web" / "public" / "data"
 
 GISTEMP_CSV = RAW_DIR / "GLB.Ts+dSST.csv"
+FRAME_FEATURES_CSV = ROOT / "data" / "frame_features.csv"  # lo genera frame_features.py
 GISTEMP_URL = "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv"
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -61,6 +62,14 @@ def padded_range(values: list[float], step: float = 0.1) -> list[float]:
     return [round(lo, 2), round(hi, 2)]
 
 
+def frame_warmth(path: Path = FRAME_FEATURES_CSV) -> list[dict] | None:
+    """Calidez de cada vuelta de la espiral, medida en los fotogramas del vídeo."""
+    if not path.exists():
+        return None
+    df = pd.read_csv(path).dropna(subset=["warmth"])
+    return [{"year": int(y), "w": round(float(w), 4)} for y, w in zip(df["year"], df["warmth"])]
+
+
 def build_temperature_track(df: pd.DataFrame, retrieved: str) -> dict:
     series = monthly_series(df)
     annual = annual_series(df)
@@ -85,6 +94,8 @@ def build_temperature_track(df: pd.DataFrame, retrieved: str) -> dict:
             "duration": 30.0,
             "credit": "NASA Scientific Visualization Studio — Climate Spiral 1880–Present (SVS 5190)",
         },
+        # Color medido en los fotogramas (scripts/frame_features.py): controla la capa "frames".
+        "frameWarmth": frame_warmth(),
         "description": (
             "Anomalía mensual de la temperatura global de la superficie, de tierra y océano, "
             f"desde {first} hasta {last}, respecto a la media de 1951–1980. "

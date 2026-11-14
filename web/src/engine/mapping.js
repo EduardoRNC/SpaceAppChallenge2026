@@ -125,6 +125,21 @@ export function intensity(v, cfg) {
   return ramp(v, cfg.intensityStart, cfg.intensityFull);
 }
 
+/** Rango [mín, máx] de la calidez medida en los fotogramas. */
+export function warmthRange(frameWarmth) {
+  const ws = frameWarmth.map((row) => row.w);
+  return [Math.min(...ws), Math.max(...ws)];
+}
+
+/**
+ * Capa de fotogramas: la calidez del color de la vuelta nueva (azul → granate)
+ * controla el volumen y la velocidad del trémolo de un acorde agudo y limpio.
+ */
+export function frameTargets(w, range) {
+  const f = normalize(w, range);
+  return { level: 0.12 + 0.88 * f, tremoloHz: 1.5 + 8.5 * f };
+}
+
 export function midiToFreq(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
