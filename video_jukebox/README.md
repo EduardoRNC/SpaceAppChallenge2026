@@ -158,6 +158,21 @@ la música, que ninguna combinación de pistas sature, presupuestos de tamaño y
 Imprime la calidad de cada stem (SNR frente al WAV). Tests: `tests/test_build_web.py` (video
 sintético de 6 s).
 
+**Calidad de los stems.** `compare_stems.py` compara cada WAV con su AAC publicado a igual
+volumen (por bandas, en el ataque y en la caída de las campanadas) y con `--excerpt 8` escribe
+fragmentos A/B en `out/compare/`:
+
+```bash
+python compare_stems.py --name ecco2_full --also 192 256 --excerpt 8
+```
+
+Con ECCO2 a 128 kb/s: temperatura, corrientes y bajo quedan a 34–40 dB de SNR. La campana
+(`remolinos`) queda en 13 dB porque el patch FM (razón 3.5, índice 4) tiene un 5.7 % de su
+energía por encima de 16 kHz y el codificador corta en 17.6 kHz; además el error se concentra
+en el ataque (9 dB frente a 17 dB en la caída). En las notas más agudas (≥ 88, 25 de 69 campanadas)
+parte de ese contenido es aliasing de la propia síntesis (−7 dB en la nota 98). A 256 kb/s no hay
+corte y el SNR sube a 34 dB.
+
 Probar la demo:
 
 ```bash
