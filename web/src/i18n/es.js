@@ -65,6 +65,29 @@ export default {
     end: "Fin. Pulsa Reproducir para empezar de nuevo.",
     error: "Error: {message}",
   },
+  notice: {
+    buffering:
+      "El vídeo aún está cargando. La música está en pausa en {time} y seguirá sola cuando el vídeo esté listo.",
+    network:
+      "El vídeo dejó de recibir datos (¿problema de red?). La música está en pausa en {time} y seguirá sola si vuelve la conexión; también puedes pulsar Reintentar.",
+    seek: "El vídeo tarda demasiado en llegar a {time}. La música lo espera y seguirá sola; también puedes pulsar Reintentar.",
+    frozen: "El vídeo se congeló. La música está en pausa en {time} y seguirá sola cuando el vídeo pueda continuar.",
+    stuck: "El vídeo se congela una y otra vez. La música está en pausa en {time}. Pulsa Reintentar para volver a cargar el vídeo.",
+    error: {
+      network:
+        "No se pudo cargar el vídeo por un error de red. Comprueba la conexión y pulsa Reintentar; la música seguirá desde {time}.",
+      decode: "El navegador no pudo decodificar el vídeo. Pulsa Reintentar; si vuelve a pasar, recarga la página.",
+      unsupported: "Este navegador no puede reproducir el archivo de vídeo (MP4, H.264). Prueba con otro navegador.",
+      aborted: "Se interrumpió la carga del vídeo. Pulsa Reintentar para seguir desde {time}.",
+      unknown: "El vídeo dejó de funcionar. Pulsa Reintentar para seguir desde {time}.",
+      reload: "El vídeo sigue sin responder. Comprueba la conexión y vuelve a pulsar Reintentar.",
+    },
+    retrying: "Volviendo a cargar el vídeo…",
+    recovered: "El vídeo vuelve a estar listo: sigue la reproducción.",
+    loadFailed: "La demo no pudo arrancar: {message}. Comprueba la conexión y recarga la página.",
+    retry: "Reintentar",
+    reload: "Recargar la página",
+  },
   errors: {
     fetch: "no se pudo cargar {url} (HTTP {status})",
     video: "no se pudo cargar el vídeo",

@@ -4,6 +4,7 @@
 import { createTransport } from "./transport.js";
 import { createFollower } from "./follower.js";
 import { createPlayer } from "./player.js";
+import { watchVideo } from "./watchdog.js";
 import { shortcutFor } from "./keys.js";
 import { videoTarget } from "./clock.js";
 import { gains, initialStates, reset, toggle } from "./mix.js";
@@ -24,6 +25,7 @@ const SPEAKER_ICON = `<svg class="jb-icon" viewBox="0 0 24 24" aria-hidden="true
 </svg>`;
 const STEP_S = 5;
 const SEEK_TIMEOUT_MS = 2000;
+const RELOAD_TIMEOUT_MS = 15000;
 
 const storage = safeStorage();
 const i18n = createI18n({
@@ -54,12 +56,18 @@ const el = {
   stems: $("jb-stems"),
   reset: $("jb-reset"),
   status: $("jb-status"),
+  notice: $("jb-notice"),
+  noticeText: $("jb-notice-text"),
+  retry: $("jb-retry"),
   disclaimer: $("jb-disclaimer"),
   credits: $("jb-credits"),
   debug: $("jb-debug-values"),
 };
 
-let manifest, timeline, transport, follower, player, roll, regions, states, scrubbing = null, decoded = null, nowText = "";
+let manifest, timeline, transport, follower, player, watchdog, roll, regions, states;
+let scrubbing = null;
+let decoded = null;
+let nowText = "";
 
 // El estado se guarda como función para poder reescribirlo al cambiar de idioma.
 let status = () => "";
@@ -86,17 +94,64 @@ async function fetchBytes(url) {
   return res.arrayBuffer();
 }
 
+/** true cuando el vídeo termina de buscar; false si tarda más de SEEK_TIMEOUT_MS. */
 function waitSeeked(video) {
-  if (!video.seeking) return Promise.resolve();
+  if (!video.seeking) return Promise.resolve(true);
   return new Promise((resolve) => {
-    const done = () => {
+    const done = (ok) => {
       clearTimeout(timer);
-      video.removeEventListener("seeked", done);
-      resolve();
+      video.removeEventListener("seeked", seeked);
+      resolve(ok);
     };
-    const timer = setTimeout(done, SEEK_TIMEOUT_MS);
-    video.addEventListener("seeked", done);
+    const seeked = () => done(true);
+    const timer = setTimeout(() => done(false), SEEK_TIMEOUT_MS);
+    video.addEventListener("seeked", seeked);
   });
+}
+
+/** Vuelve a cargar el vídeo (tras un error de red): true cuando tiene el primer fotograma. */
+function reloadVideo() {
+  const video = el.video;
+  return new Promise((resolve) => {
+    const done = (ok) => {
+      clearTimeout(timer);
+      video.removeEventListener("loadeddata", loaded);
+      video.removeEventListener("error", failed);
+      resolve(ok);
+    };
+    const loaded = () => done(true);
+    const failed = () => done(false);
+    const timer = setTimeout(() => done(false), RELOAD_TIMEOUT_MS);
+    video.addEventListener("loadeddata", loaded);
+    video.addEventListener("error", failed);
+    video.load();
+  });
+}
+
+// Aviso visible (role="alert") con su botón: el texto también es una función, por el idioma.
+let notice = null;
+function showNotice(text, action = "retry") {
+  notice = { text, action };
+  renderNotice();
+}
+function hideNotice() {
+  notice = null;
+  renderNotice();
+}
+function renderNotice() {
+  el.notice.classList.toggle("jb-notice-on", notice != null);
+  el.noticeText.textContent = notice ? notice.text() : "";
+  el.retry.hidden = !notice?.action;
+  if (notice?.action) el.retry.textContent = t(notice.action === "reload" ? "notice.reload" : "notice.retry");
+}
+
+/** Texto del aviso según el estado del reproductor (null si no hay nada que avisar). */
+function noticeFor(mode, reason) {
+  const at = { time: time(player.position()) };
+  if (mode === "holding") return () => t(watchdog?.stuck ? "notice.stuck" : `notice.${reason}`, at);
+  if (mode === "failed") return () => t(`notice.error.${reason}`, at);
+  if (mode === "retrying") return () => t("notice.retrying");
+  return null;
 }
 
 const videoDuration = () => el.video.duration || manifest.video.duration_s;
@@ -111,6 +166,10 @@ function onPlayerChange(event) {
   updatePlayButton();
   if (event === "end") say(endStatus);
   else if (event === "start" && status === endStatus) say(() => "");
+  if (event === "recover") say(() => t("notice.recovered"));
+  const text = noticeFor(player.mode, player.reason);
+  if (text) showNotice(text, player.mode === "retrying" ? null : "retry");
+  else if (notice?.action !== "reload") hideNotice();
 }
 
 function updatePlayButton() {
@@ -320,6 +379,7 @@ function applyLanguage() {
   for (const b of document.querySelectorAll("[data-lang]")) b.setAttribute("aria-pressed", String(b.dataset.lang === i18n.lang));
   updatePlayButton();
   el.status.textContent = status();
+  renderNotice();
   if (!manifest) return;
   el.title.textContent = i18n.data("data.title", manifest.title);
   renderCredits();
@@ -340,6 +400,7 @@ function bindLanguage() {
 async function init() {
   window.jukeboxDebug = { i18n };
   bindLanguage();
+  el.retry.addEventListener("click", () => (notice?.action === "reload" ? location.reload() : player?.retry()));
   try {
     const base = document.baseURI;
     manifest = await (await fetch(assetUrl(MANIFEST, base))).json();
@@ -392,7 +453,16 @@ async function init() {
       videoDuration,
       fps: manifest.video.fps,
       waitSeeked,
+      reloadVideo,
       onChange: onPlayerChange,
+    });
+    watchdog = watchVideo({
+      video: el.video,
+      player,
+      transport,
+      fps: manifest.video.fps,
+      videoDuration,
+      onStuck: () => onPlayerChange("hold"),
     });
     el.roll.closest("figure").hidden = false;
     roll = createPianoRoll({
@@ -411,7 +481,7 @@ async function init() {
       onSeek: (pos) => player.jump(pos),
     });
     for (const s of document.querySelectorAll(".jb-regions, .jb-map")) s.hidden = false;
-    Object.assign(window.jukeboxDebug, { manifest, timeline, transport, follower, player, roll, regions, ctx, stems, getStates: () => states });
+    Object.assign(window.jukeboxDebug, { manifest, timeline, transport, follower, player, watchdog, roll, regions, ctx, stems, getStates: () => states });
 
     buildStemRows();
     states = initialStates(manifest.audio.stems.map((s) => s.id));
@@ -423,7 +493,9 @@ async function init() {
     say(() => t("status.ready"));
   } catch (err) {
     console.error(err);
-    say(() => t("status.error", { message: err.describe ? err.describe() : err.message }));
+    const message = () => (err.describe ? err.describe() : err.message);
+    say(() => t("status.error", { message: message() }));
+    showNotice(() => t("notice.loadFailed", { message: message() }), "reload");
   }
 }
 

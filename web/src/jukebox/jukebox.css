@@ -51,6 +51,28 @@ body {
   font-size: 0.85rem;
 }
 
+/* Siempre en la página (role="alert" se anuncia al cambiar su texto); solo se ve con aviso. */
+.jb-notice.jb-notice-on {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 4px solid #ff8a80;
+  background: rgb(255 138 128 / 0.1);
+  border-radius: 0.375rem;
+}
+
+.jb-notice p {
+  flex: 1 1 20rem;
+  margin: 0;
+}
+
+.jb-notice p:empty {
+  display: none;
+}
+
 .jb-transport {
   display: flex;
   flex-wrap: wrap;

@@ -65,6 +65,29 @@ export default {
     end: "End. Press Play to start again.",
     error: "Error: {message}",
   },
+  notice: {
+    buffering:
+      "The video is still loading. The music is paused at {time} and will continue on its own when the video is ready.",
+    network:
+      "The video stopped receiving data (network problem?). The music is paused at {time} and will continue on its own if the connection comes back; you can also press Retry.",
+    seek: "The video is taking too long to reach {time}. The music is waiting for it and will continue on its own; you can also press Retry.",
+    frozen: "The video froze. The music is paused at {time} and will continue on its own when the video can play again.",
+    stuck: "The video keeps freezing. The music is paused at {time}. Press Retry to reload the video.",
+    error: {
+      network:
+        "The video could not be loaded because of a network error. Check your connection and press Retry; the music will continue from {time}.",
+      decode: "The browser could not decode the video. Press Retry; if it happens again, reload the page.",
+      unsupported: "This browser cannot play the video file (MP4, H.264). Please try another browser.",
+      aborted: "Loading the video was interrupted. Press Retry to continue from {time}.",
+      unknown: "The video stopped working. Press Retry to continue from {time}.",
+      reload: "The video still does not respond. Check your connection and press Retry again.",
+    },
+    retrying: "Reloading the video…",
+    recovered: "The video is ready again: playback continues.",
+    loadFailed: "The demo could not start: {message}. Check your connection and reload the page.",
+    retry: "Retry",
+    reload: "Reload the page",
+  },
   errors: {
     fetch: "could not load {url} (HTTP {status})",
     video: "the video could not be loaded",
