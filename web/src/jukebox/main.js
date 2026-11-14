@@ -11,6 +11,7 @@ import { barBeat, formatDate, formatTime, frameAt, modelDate } from "./format.js
 import { assetUrl, checkManifest } from "./manifest.js";
 import { checkTimeline, chordAt, noteName, soundingAt } from "./timeline.js";
 import { createPianoRoll } from "./pianoroll.js";
+import { createRegionCharts, renderMappingList } from "./regions.js";
 
 const MANIFEST = "data/jukebox/ecco2.json";
 const STEP_S = 5;
@@ -31,6 +32,9 @@ const el = {
   chord: $("jb-chord"),
   roll: $("jb-roll"),
   now: $("jb-now"),
+  regionPicker: $("jb-region-picker"),
+  charts: $("jb-charts"),
+  mapping: $("jb-mapping"),
   stems: $("jb-stems"),
   reset: $("jb-reset"),
   status: $("jb-status"),
@@ -39,7 +43,7 @@ const el = {
   debug: $("jb-debug-values"),
 };
 
-let manifest, timeline, transport, follower, player, roll, states, scrubbing = null, decodeInfo = "", nowText = "";
+let manifest, timeline, transport, follower, player, roll, regions, states, scrubbing = null, decodeInfo = "", nowText = "";
 const say = (text) => (el.status.textContent = text);
 
 async function fetchBytes(url) {
@@ -141,6 +145,7 @@ function updateMusic(t) {
   el.chord.textContent = chord ? `Acorde ${chord.name}` : "";
   const mix = gains(states);
   roll.draw(t, mix);
+  regions.update(t);
   const parts = Object.entries(soundingAt(roll.lanes, t))
     .filter(([id, notes]) => notes.length && mix[id] > 0)
     .map(([id, notes]) => `${stemLabel(id)}: ${notes.map(noteName).join(" ")}`);
@@ -291,7 +296,16 @@ async function init() {
       stems: manifest.audio.stems,
       onSeek: (t) => player.jump(t),
     });
-    Object.assign(window.jukeboxDebug, { manifest, timeline, transport, follower, player, roll, ctx, stems, getStates: () => states });
+    regions = createRegionCharts({
+      picker: el.regionPicker,
+      container: el.charts,
+      timeline,
+      stems: manifest.audio.stems,
+      onSeek: (t) => player.jump(t),
+    });
+    renderMappingList(el.mapping, manifest.audio.stems, timeline.features.metrics);
+    for (const s of document.querySelectorAll(".jb-regions, .jb-map")) s.hidden = false;
+    Object.assign(window.jukeboxDebug, { manifest, timeline, transport, follower, player, roll, regions, ctx, stems, getStates: () => states });
 
     buildStemRows();
     applyMix();

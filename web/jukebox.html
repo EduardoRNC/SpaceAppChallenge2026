@@ -76,6 +76,30 @@
         </details>
       </section>
 
+      <section aria-labelledby="jb-regions-title" class="jb-regions" hidden>
+        <h2 id="jb-regions-title">Lo que mide la imagen, por región</h2>
+        <p class="jb-warning">
+          <strong>Todas estas medidas son proxies visuales sin calibrar.</strong> Se calculan a partir de los
+          píxeles del vídeo (color y flujo óptico): no son temperaturas en °C, ni velocidades en m/s, ni
+          vorticidad física. Se muestran por fotograma, sin el suavizado que usa la música. En este vídeo,
+          las variaciones rápidas de movimiento y turbulencia se deben sobre todo al ruido de compresión;
+          el índice de color sí sigue las estaciones.
+        </p>
+        <fieldset id="jb-region-picker" class="jb-region-picker">
+          <legend>Región (franja de latitud)</legend>
+        </fieldset>
+        <div id="jb-charts" class="jb-charts"></div>
+      </section>
+
+      <section aria-labelledby="jb-map-title" class="jb-map" hidden>
+        <h2 id="jb-map-title">Qué controla cada instrumento</h2>
+        <p>
+          Cada pista sigue una o varias de las medidas de arriba. Antes de convertirlas en notas se suavizan
+          y se comparan con su propio rango: la música sigue cambios relativos, no valores absolutos.
+        </p>
+        <ul id="jb-mapping" class="jb-mapping"></ul>
+      </section>
+
       <section aria-labelledby="jb-keys-title">
         <h2 id="jb-keys-title">Atajos de teclado</h2>
         <dl class="shortcuts">

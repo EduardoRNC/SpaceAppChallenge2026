@@ -99,8 +99,11 @@ mezcla. Test: la suma de stems ≈ mezcla antes de la saturación final y misma 
 2. `build_web.py` + activos generados. **Hecho.**
 3. `jukebox.html` con video, audio por stems, mute/solo y sincronía. **Hecho** (el audio manda;
    el video lo sigue ajustando su velocidad ±1–10 % y solo salta si se desvía más de 0.3 s).
-4. Línea temporal de notas.
-5. Paneles de regiones y de proxies.
+4. Línea temporal de notas. **Hecho:** piano roll de 10 s con cuatro carriles, acordes por compás y
+   cabezal en la posición del audio; pulsar salta a ese momento (`web/src/jukebox/pianoroll.js`).
+5. Paneles de regiones y de proxies. **Hecho:** selector de franja, una gráfica por medida con su
+   unidad, la etiqueta "proxy visual · sin calibrar", su advertencia y qué pista la usa; lista de qué
+   controla cada instrumento (`regions.js`, `mappings.js`, que resume `compose.py`).
 6. Documentación y comprobación manual.
 
 ## Decisiones tomadas
