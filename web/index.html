@@ -15,8 +15,8 @@
     <header>
       <h1>La espiral que suena</h1>
       <p>
-        El calentamiento global desde 1880, para escuchar. Pulsa <kbd>Espacio</kbd> para
-        reproducir.
+        Un jukebox de datos de la Tierra: temperatura, CO₂ y hielo ártico, para escuchar.
+        Pulsa <kbd>Espacio</kbd> para reproducir.
       </p>
     </header>
 
@@ -34,7 +34,7 @@
           <legend>Modo</legend>
           <label>
             <input type="radio" name="mode" value="history" checked />
-            <span><strong>Historia</strong>: de 1880 a hoy, con la espiral.</span>
+            <span><strong>Historia</strong>: <span id="history-label">de 1880 a hoy, con la visualización.</span></span>
           </label>
           <label>
             <input type="radio" name="mode" value="explore" />
@@ -42,20 +42,18 @@
           </label>
           <label>
             <input type="radio" name="mode" value="compare" />
-            <span><strong>Comparar</strong>: la década de 1880 frente a la de 2010.</span>
+            <span><strong>Comparar</strong>: <span id="compare-label">la década de 1880 frente a la de 2010.</span></span>
           </label>
         </fieldset>
 
         <figure class="spiral">
           <video id="spiral" muted playsinline preload="auto" aria-describedby="spiral-desc"></video>
+          <div id="still" class="still" role="img" aria-describedby="spiral-desc" hidden>
+            <img id="still-img" alt="" />
+            <div id="playhead" class="playhead" hidden></div>
+          </div>
           <figcaption>
-            <span id="spiral-desc">
-              Visualización: una espiral dibuja cada mes alrededor de un reloj de 12 meses.
-              Los círculos marcan −1 °C, 0 °C (la media de 1951–1980, en verde) y +1 °C. Las
-              vueltas azules (frías) se quedan dentro; desde los años 80 las vueltas rojas
-              (calientes) se abren hacia fuera. Al final, la espiral se inclina y forma un
-              cono que se ensancha hacia 2026.
-            </span>
+            <span id="spiral-desc"></span>
             <span id="spiral-credit"></span>
           </figcaption>
         </figure>
@@ -80,34 +78,7 @@
 
       <section aria-labelledby="legend-title">
         <h2 id="legend-title">Cómo escucharlo</h2>
-        <ul>
-          <li>
-            <strong>Drone grave:</strong> la referencia (media de 1951–1980). Crece cuanto
-            más calor hace.
-          </li>
-          <li>
-            <strong>Melodía:</strong> una nota por año. Cuanto más aguda, más caliente fue
-            ese año.
-          </li>
-          <li>
-            <strong>Arpegio y ostinato de fondo:</strong> los 12 meses de cada año, uno agudo
-            y otro grave.
-          </li>
-          <li>
-            <strong>Latido:</strong> un corazón que se acelera con la temperatura, de
-            reposo a taquicardia.
-          </li>
-          <li>
-            <strong>Tensión:</strong> pasados +0.5 °C la escala se vuelve menor. Desde +0.4 °C
-            entra un roce de segunda menor contra el drone, y desde +0.8 °C un tritono.
-          </li>
-          <li><strong>Tick:</strong> empieza una década.</li>
-          <li><strong>Campanita:</strong> ese año batió el récord de calor.</li>
-          <li>
-            <strong>Acorde agudo con trémolo:</strong> sale del color de la espiral en el
-            vídeo. Cuanto más rojo se dibuja cada vuelta, más fuerte suena y más rápido tiembla.
-          </li>
-        </ul>
+        <ul id="legend-list"></ul>
       </section>
 
       <section aria-labelledby="keys-title">
@@ -119,16 +90,16 @@
         <h2 id="settings-title">Ajustes</h2>
         <fieldset>
           <legend>Velocidad de la Historia</legend>
-          <label><input type="radio" name="speed" value="2" /> Muy lenta (~5 min)</label>
-          <label><input type="radio" name="speed" value="1" /> Lenta (~2.5 min)</label>
-          <label><input type="radio" name="speed" value="0.41" /> Pausada (~1 min)</label>
-          <label><input type="radio" name="speed" value="0.1597" checked /> Original del vídeo (~25 s)</label>
+          <label><input type="radio" name="speed" value="300" /> Muy lenta (~5 min)</label>
+          <label><input type="radio" name="speed" value="150" /> Lenta (~2.5 min)</label>
+          <label><input type="radio" name="speed" value="60" /> Pausada (~1 min)</label>
+          <label><input type="radio" name="speed" value="25" checked /> Rápida (~25 s)</label>
         </fieldset>
         <fieldset>
           <legend>Intro</legend>
           <label>
             <input type="checkbox" id="intro-toggle" checked />
-            Breve explicación en inglés de cada capa antes de reproducir desde 1880 (~15 s)
+            Breve explicación en inglés de cada capa antes de reproducir desde el principio (~15 s)
           </label>
         </fieldset>
         <fieldset>
@@ -154,8 +125,8 @@
 
     <footer>
       <p>
-        Datos: NASA GISS (GISTEMP v4). Visualización: NASA Scientific
-        Visualization Studio. Proyecto para NASA Space Apps Challenge 2026. No está
+        Datos: NASA GISS (GISTEMP v4), NOAA GML (CO₂ de Mauna Loa) y NSIDC (Sea Ice
+        Index v4). Visualizaciones: NASA Scientific Visualization Studio. Proyecto para NASA Space Apps Challenge 2026. No está
         respaldado por NASA.
       </p>
     </footer>

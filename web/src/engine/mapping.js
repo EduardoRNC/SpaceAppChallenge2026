@@ -3,6 +3,11 @@
 //
 // Regla general: más caliente = más agudo, más brillante, más rápido y más tenso.
 // La línea base (anomalía 0 °C, media 1951–1980) cae siempre en la tónica (C4).
+//
+// Varias pistas (Paso 8): el TONO sigue al valor de cada pista (más valor = más agudo),
+// pero la TENSIÓN sigue al "estrés", que traduce el valor a la escala de la temperatura
+// (0 → +1.4) con sound.stressZero / sound.stressFull. Así todas las pistas reutilizan
+// los mismos umbrales. En el hielo, stressFull < stressZero: menos hielo = más tensión.
 
 export const MAJOR_PENTA = [0, 2, 4, 7, 9]; // calma
 export const MINOR_PENTA = [0, 3, 5, 7, 10]; // tensión
@@ -25,10 +30,31 @@ export const DEFAULTS = {
   pulseBpmMax: 144, // latido acelerado
   intensityStart: -0.2, // °C: crescendo general
   intensityFull: 1.4,
+  cutoffStressRange: [-0.9, 1.6], // estrés que recorre el brillo de más apagado a más brillante
+  stressZero: 0, // valor de la pista que equivale a estrés 0 (temperatura: 0 °C)
+  stressFull: 1.4, // valor de la pista que equivale a estrés 1.4 (temperatura: +1.4 °C)
 };
 
+export const STRESS_FULL = 1.4;
+
 export function configFromTrack(track, overrides = {}) {
-  return { ...DEFAULTS, baseline: track.baseline, range: track.range, ...overrides };
+  return {
+    ...DEFAULTS,
+    baseline: track.baseline,
+    range: track.range,
+    ...(track.sound ?? {}),
+    ...overrides,
+  };
+}
+
+/** Valor de la pista → estrés en la escala de la temperatura (0 → 1.4). */
+export function stressOf(v, cfg) {
+  return (STRESS_FULL * (v - cfg.stressZero)) / (cfg.stressFull - cfg.stressZero);
+}
+
+/** Inverso de stressOf: el valor de la pista que produce un estrés dado. */
+export function valueForStress(s, cfg) {
+  return cfg.stressZero + (s / STRESS_FULL) * (cfg.stressFull - cfg.stressZero);
 }
 
 export const clamp01 = (x) => Math.min(1, Math.max(0, x));
@@ -61,7 +87,7 @@ export function midiForStep(step, scale, tonicMidi) {
 
 /** 0 = calma (pentatónica mayor), 1 = tensión total (pentatónica menor). */
 export function tension(v, cfg) {
-  return ramp(v, cfg.tensionStart, cfg.tensionFull);
+  return ramp(stressOf(v, cfg), cfg.tensionStart, cfg.tensionFull);
 }
 
 /**
@@ -87,21 +113,22 @@ export function noteFor(v, i, cfg) {
 
 /** Frecuencia de corte del filtro, con escala exponencial porque el oído percibe así el brillo. */
 export function cutoffFor(v, cfg) {
-  const n = normalize(v, cfg.range);
+  const n = normalize(stressOf(v, cfg), cfg.cutoffStressRange);
   return cfg.cutoffMin * Math.pow(cfg.cutoffMax / cfg.cutoffMin, n);
 }
 
 /** Nivel de cada nota disonante del cluster (0..1): 2ª menor y tritono. */
 export function clusterLevels(v, cfg) {
+  const s = stressOf(v, cfg);
   return {
-    minorSecond: ramp(v, cfg.b2Start, cfg.b2Full),
-    tritone: ramp(v, cfg.tritoneStart, cfg.tritoneFull),
+    minorSecond: ramp(s, cfg.b2Start, cfg.b2Full),
+    tritone: ramp(s, cfg.tritoneStart, cfg.tritoneFull),
   };
 }
 
 /** Tempo del latido en pulsaciones por minuto. */
 export function pulseBpm(v, cfg) {
-  const n = ramp(v, cfg.baseline, cfg.intensityFull);
+  const n = ramp(stressOf(v, cfg), 0, cfg.intensityFull);
   return cfg.pulseBpmMin + n * (cfg.pulseBpmMax - cfg.pulseBpmMin);
 }
 
@@ -122,7 +149,7 @@ export function pulseTimes(years, yearDuration, cfg) {
 
 /** Crescendo general (0..1): volumen del drone y del latido. */
 export function intensity(v, cfg) {
-  return ramp(v, cfg.intensityStart, cfg.intensityFull);
+  return ramp(stressOf(v, cfg), cfg.intensityStart, cfg.intensityFull);
 }
 
 /** Rango [mín, máx] de la calidez medida en los fotogramas. */

@@ -1,17 +1,19 @@
 import { createEngine } from "./engine/sonify.js";
 import { createVideoSync } from "./player/sync.js";
-import { createAnnouncer, createVoice, spokenValue } from "./a11y/speech.js";
+import { createStillSync } from "./player/still.js";
+import { createAnnouncer, createVoice } from "./a11y/speech.js";
 import { playIntro } from "./a11y/intro.js";
 import { SHORTCUTS, bindShortcuts } from "./a11y/keys.js";
 
-// Pistas del jukebox. Añadir una pista = añadir su JSON (ver README, Paso 8).
-const TRACKS = [{ id: "temperature", label: "Temperatura global (1880–hoy)", file: "data/temperature.json" }];
+// Las pistas del jukebox se listan en data/tracks.json (lo genera scripts/build_tracks.py).
+const TRACKS_INDEX = "data/tracks.json";
 
+// Velocidades de la Historia como duración total: cada pista se adapta a su número de años.
 const SPEEDS = [
-  { value: 2, label: "muy lenta, unos 5 minutos" },
-  { value: 1, label: "lenta, unos 2 minutos y medio" },
-  { value: 0.41, label: "pausada, alrededor de 1 minuto" },
-  { value: 0.1597, label: "original del vídeo, unos 25 segundos" },
+  { total: 300, label: "muy lenta, unos 5 minutos" },
+  { total: 150, label: "lenta, unos 2 minutos y medio" },
+  { total: 60, label: "pausada, alrededor de 1 minuto" },
+  { total: 25, label: "rápida, unos 25 segundos" },
 ];
 const EXPLORE_YEAR_SECONDS = 3; // un año en Explorar: 12 meses a 0.25 s
 const COMPARE_YEAR_SECONDS = 0.6; // una década en Comparar: unos 6 s
@@ -29,7 +31,14 @@ const els = {
   title: $("track-title"),
   description: $("track-description"),
   video: $("spiral"),
+  still: $("still"),
+  stillImg: $("still-img"),
+  playhead: $("playhead"),
+  visualDesc: $("spiral-desc"),
   credit: $("spiral-credit"),
+  legend: $("legend-list"),
+  compareLabel: $("compare-label"),
+  historyLabel: $("history-label"),
   year: $("year"),
   value: $("value"),
   explorePanel: $("explore-panel"),
@@ -47,23 +56,43 @@ const announcer = createAnnouncer({ liveRegion: els.status, visibleLog: els.log 
 const voice = createVoice(); // voz en inglés, solo para la intro
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+let tracks = [];
 let track = null;
 let sync = null;
 let mode = "history";
 let historyStart = 0; // año (índice) desde el que empieza la Historia
 let exploreIndex = 0;
-let busy = false; // reproduciendo, comparando o en la leyenda
+let busy = false; // reproduciendo, comparando o en la intro
 let runId = 0; // cada acción nueva invalida a la anterior
 let introActive = false;
 let skipIntro = false;
 
 const years = () => engine.years;
+const firstYear = () => years()[0].year;
 const indexOfYear = (y) => Math.max(0, years().findIndex((row) => row.year === y));
 const blindMode = () => els.blind.checked;
-const formatValue = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)} °C`;
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
-const formatNumber = (v) =>
-  Math.abs(v).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const selectedSpeedTotal = () => Number(document.querySelector('input[name="speed"]:checked').value);
+
+// --- Formato de valores (depende de la pista) ----------------------------------
+
+function number(v, decimals) {
+  return v.toLocaleString("es-ES", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+/** Texto corto para la pantalla: "+0,61 °C", "421,1 ppm". */
+function formatValue(v) {
+  const { decimals, signed, unit } = track.format;
+  const sign = signed ? (v >= 0 ? "+" : "−") : "";
+  return `${sign}${number(signed ? Math.abs(v) : v, decimals)} ${unit}`;
+}
+
+/** Texto para el lector de pantalla: "más 0,61 °C respecto a la media de 1951–1980". */
+function spokenValue(v) {
+  const { decimals, signed, unit, suffix } = track.format;
+  const sign = signed ? (v > 0 ? "más " : v < 0 ? "menos " : "") : "";
+  return `${sign}${number(signed ? Math.abs(v) : v, decimals)} ${unit}${suffix ? ` ${suffix}` : ""}`;
+}
 
 // --- Interfaz ------------------------------------------------------------------
 
@@ -84,12 +113,16 @@ function setBusy(value) {
 
 function describeYear(index) {
   const row = years()[index];
-  const partial = row.months < 12 ? ` (de enero a ${monthName(row.months)})` : "";
-  return `${row.year}${partial}: ${spokenValue(row.v)} respecto a la media de 1951–1980.`;
+  const partial = row.months < 12 ? ` (${row.months} meses)` : "";
+  return `${row.year}${partial}: ${spokenValue(row.v)}.`;
 }
 
-function monthName(n) {
-  return new Date(2000, n - 1, 1).toLocaleString("es-ES", { month: "long" });
+function compareDecades() {
+  return track.compare.map((start) => ({
+    start,
+    from: indexOfYear(start),
+    to: indexOfYear(start + 10),
+  }));
 }
 
 function setMode(newMode, { announce = true } = {}) {
@@ -103,10 +136,11 @@ function setMode(newMode, { announce = true } = {}) {
     sync.showYear(exploreIndex);
   }
   if (announce) {
+    const [a, b] = track.compare;
     const hints = {
       history: "Espacio: reproducir. ← →: saltar décadas.",
       explore: "← →: elegir año. Espacio: escucharlo.",
-      compare: "Espacio: 1880–1889 frente a 2010–2019.",
+      compare: `Espacio: ${a}–${a + 9} frente a ${b}–${b + 9}.`,
     };
     announcer.say(`Modo ${MODE_NAMES[mode]}. ${hints[mode]}`);
   }
@@ -136,6 +170,7 @@ async function startHistory(from, { withIntro = false } = {}) {
     await playIntro({
       engine,
       voice,
+      steps: track.intro,
       captions: (text) => announcer.say(text),
       isCancelled: () => skipIntro || id !== runId,
     });
@@ -145,7 +180,7 @@ async function startHistory(from, { withIntro = false } = {}) {
     if (id !== runId) return;
     els.play.textContent = "Detener";
   }
-  status(from === 0 ? "Reproduciendo desde 1880." : `Reproduciendo desde ${years()[from].year}.`);
+  status(`Reproduciendo desde ${years()[from].year}.`);
   sync.startAt(from, engine.yearDuration);
   const result = await engine.playRange({ from });
   if (id !== runId) return; // otra acción tomó el control
@@ -153,7 +188,7 @@ async function startHistory(from, { withIntro = false } = {}) {
   if (result === "finished") {
     sync.finish();
     historyStart = 0;
-    status("Fin: de 1880 a hoy.");
+    status(`Fin: de ${firstYear()} a hoy.`);
   } else {
     historyStart = engine.currentIndex;
   }
@@ -173,11 +208,7 @@ async function runCompare() {
   const id = ++runId;
   const alive = () => id === runId;
   setBusy(true);
-  const decades = [1880, 2010].map((start) => ({
-    start,
-    from: indexOfYear(start),
-    to: indexOfYear(start + 10),
-  }));
+  const decades = compareDecades();
   const mean = ({ from, to }) =>
     years().slice(from, to).reduce((s, r) => s + r.v, 0) / (to - from);
 
@@ -190,9 +221,12 @@ async function runCompare() {
     sync.stop();
     if (!alive()) return;
   }
-  const diff = mean(decades[1]) - mean(decades[0]);
+  const [a, b] = decades;
+  const diff = mean(b) - mean(a);
+  const { decimals, unit } = track.format;
   announcer.say(
-    `2010–2019 fue ${formatNumber(diff)} °C ${diff >= 0 ? "más cálida" : "más fría"} que 1880–1889.`,
+    `${b.start}–${b.start + 9}: ${diff >= 0 ? "+" : "−"}${number(Math.abs(diff), decimals)} ${unit} ` +
+      `frente a ${a.start}–${a.start + 9}.`,
   );
   setBusy(false);
 }
@@ -224,7 +258,7 @@ function step(dir) {
   if (mode === "history") {
     const current = busy ? engine.currentIndex : historyStart;
     const decade = Math.floor(years()[current].year / 10) * 10 + dir * 10;
-    const target = Math.max(0, Math.min(last, indexOfYear(Math.max(1880, decade))));
+    const target = Math.max(0, Math.min(last, indexOfYear(Math.max(firstYear(), decade))));
     if (busy) {
       startHistory(target);
     } else {
@@ -243,14 +277,14 @@ function speed(dir) {
   const i = radios.findIndex((r) => r.checked);
   const next = Math.max(0, Math.min(radios.length - 1, i + dir));
   radios[next].checked = true;
-  applySpeed(Number(radios[next].value), { restart: true });
+  applySpeed({ restart: true });
 }
 
-function applySpeed(value, { restart = false } = {}) {
-  engine.setYearDuration(value);
-  const label = SPEEDS.find((s) => s.value === value)?.label ?? "";
+function applySpeed({ restart = false, announce = true } = {}) {
+  const total = selectedSpeedTotal();
+  engine.setYearDuration(total / years().length);
   if (restart && busy && mode === "history") startHistory(engine.currentIndex);
-  announcer.say(`Velocidad: ${label}.`);
+  if (announce) announcer.say(`Velocidad: ${SPEEDS.find((s) => s.total === total)?.label ?? ""}.`);
 }
 
 function nextMode() {
@@ -272,7 +306,40 @@ function onExploreChange({ fromSlider = false } = {}) {
   else announcer.say(describeYear(exploreIndex));
 }
 
-// --- Inicio -----------------------------------------------------------------------
+// --- Carga de pistas ---------------------------------------------------------------
+
+function renderLegend() {
+  els.legend.replaceChildren(
+    ...track.legend.map(([term, text]) => {
+      const li = document.createElement("li");
+      const strong = document.createElement("strong");
+      strong.textContent = `${term}:`;
+      li.append(strong, ` ${text}`);
+      return li;
+    }),
+  );
+}
+
+function setupVisual() {
+  const visual = track.video;
+  const base = import.meta.env.BASE_URL;
+  els.visualDesc.textContent = visual.description;
+  els.credit.textContent = visual.credit;
+  const isStill = visual.type === "still";
+  els.video.hidden = isStill;
+  els.still.hidden = !isStill;
+  if (isStill) {
+    els.video.removeAttribute("src");
+    els.video.load();
+    els.stillImg.src = `${base}${visual.src}`;
+    els.still.style.aspectRatio = visual.aspect;
+    sync = createStillSync({ playhead: els.playhead, still: visual, firstYear: firstYear(), reducedMotion });
+  } else {
+    els.video.src = `${base}${visual.src}`;
+    els.video.style.aspectRatio = visual.aspect;
+    sync = createVideoSync(els.video, visual, { reducedMotion });
+  }
+}
 
 async function loadTrack(entry) {
   stopAll();
@@ -280,12 +347,15 @@ async function loadTrack(entry) {
   if (!res.ok) throw new Error(`No se pudo cargar la pista (${res.status})`);
   track = await res.json();
   engine.load(track);
+  applySpeed({ announce: false });
 
   els.title.textContent = track.title;
   els.description.textContent = track.description;
-  els.video.src = `${import.meta.env.BASE_URL}${track.video.src}`;
-  els.credit.textContent = track.video.credit;
-  sync = createVideoSync(els.video, track.video, { reducedMotion });
+  setupVisual();
+  renderLegend();
+  const [a, b] = track.compare;
+  els.compareLabel.textContent = `la década de ${a} frente a la de ${b}.`;
+  els.historyLabel.textContent = `de ${firstYear()} a hoy, con la visualización.`;
 
   const ys = years();
   els.slider.min = ys[0].year;
@@ -295,10 +365,16 @@ async function loadTrack(entry) {
   els.slider.setAttribute("aria-valuetext", `${ys[exploreIndex].year}: ${formatValue(ys[exploreIndex].v)}`);
   historyStart = 0;
   showYear(0);
+  if (mode === "explore") sync.showYear(exploreIndex);
 }
 
+// --- Inicio -----------------------------------------------------------------------
+
 async function init() {
-  for (const t of TRACKS) els.track.add(new Option(t.label, t.id));
+  const res = await fetch(`${import.meta.env.BASE_URL}${TRACKS_INDEX}`);
+  if (!res.ok) throw new Error(`No se pudo cargar el índice de pistas (${res.status})`);
+  tracks = await res.json();
+  for (const t of tracks) els.track.add(new Option(t.label, t.id));
   for (const [key, desc] of SHORTCUTS) {
     const dt = document.createElement("dt");
     dt.innerHTML = `<kbd>${key}</kbd>`;
@@ -307,7 +383,7 @@ async function init() {
     els.shortcuts.append(dt, dd);
   }
 
-  await loadTrack(TRACKS[0]);
+  await loadTrack(tracks[0]);
 
   engine.on("year", ({ year, value, index }) => {
     els.year.textContent = year;
@@ -316,9 +392,14 @@ async function init() {
     // Mientras suena no se anuncia nada: la música manda.
   });
 
-  els.track.addEventListener("change", () =>
-    loadTrack(TRACKS.find((t) => t.id === els.track.value)).catch(showError),
-  );
+  els.track.addEventListener("change", async () => {
+    try {
+      await loadTrack(tracks.find((t) => t.id === els.track.value));
+      announcer.say(`Pista: ${track.title}.`);
+    } catch (err) {
+      showError(err);
+    }
+  });
   els.play.addEventListener("click", toggle);
   els.slider.addEventListener("input", () => {
     if (busy) stopAll();
@@ -330,7 +411,7 @@ async function init() {
     input.addEventListener("change", () => setMode(input.value)),
   );
   document.querySelectorAll('input[name="speed"]').forEach((input) =>
-    input.addEventListener("change", () => applySpeed(Number(input.value))),
+    input.addEventListener("change", () => applySpeed()),
   );
   document.querySelectorAll('input[name="layer"]').forEach((input) =>
     input.addEventListener("change", () => engine.setLayer(input.value, input.checked)),

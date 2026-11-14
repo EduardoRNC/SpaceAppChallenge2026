@@ -134,3 +134,70 @@ def test_frame_colour_matches_data(track):
     t = np.array([np.mean(means[row["year"]]) for row in warmth])
     assert len(warmth) == len(means)
     assert np.corrcoef(w, t)[0, 1] > 0.9
+
+
+# --- Pistas extra: CO₂ y hielo ártico (Paso 8) --------------------------------
+
+from build_tracks import build_co2_track, build_sea_ice_track  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def co2() -> dict:
+    return build_co2_track(retrieved="test")
+
+
+@pytest.fixture(scope="module")
+def ice() -> dict:
+    return build_sea_ice_track(retrieved="test")
+
+
+def test_co2_control_values(co2):
+    # Valores publicados por NOAA GML (co2_mm_mlo.csv).
+    assert value_at(co2, "1958-03") == pytest.approx(315.71, abs=0.01)
+    assert value_at(co2, "2026-09") == pytest.approx(426.07, abs=0.05)
+
+
+def test_co2_bells_mark_milestones(co2):
+    annual = {a["year"]: a["v"] for a in co2["annual"]}
+    for level, year in zip(co2["milestones"], co2["records"]):
+        assert annual[year] >= level and annual[year - 1] < level
+
+
+def test_co2_stress_rises_with_value(co2):
+    s = co2["sound"]
+    assert s["stressFull"] > s["stressZero"]
+    lo, hi = co2["range"]
+    assert lo <= co2["baseline"] <= hi
+
+
+def test_sea_ice_climatology_is_centered(ice):
+    # Las anomalías se calculan respecto a 1981–2010: en ese periodo su media es ~0.
+    vals = [p["v"] for p in ice["series"] if 1981 <= int(p["t"][:4]) <= 2010]
+    assert abs(sum(vals) / len(vals)) < 0.01
+
+
+def test_sea_ice_known_gap_only(ice):
+    # El único hueco conocido del Sea Ice Index: dic-1987 y ene-1988 (fallo del satélite).
+    months = {p["t"] for p in ice["series"]}
+    assert "1987-12" not in months and "1988-01" not in months
+    assert len(ice["series"]) == (2026 - 1979) * 12 + int(ice["series"][-1]["t"][5:]) - 2
+
+
+def test_sea_ice_tension_rises_as_ice_falls(ice):
+    s = ice["sound"]
+    assert s["stressFull"] < s["stressZero"]  # menos hielo = más tensión
+    # Los récords de la campanita son mínimos: cada uno más bajo que el anterior.
+    annual = {a["year"]: a["v"] for a in ice["annual"]}
+    values = [annual[y] for y in ice["records"]]
+    assert values == sorted(values, reverse=True)
+    assert 2012 in ice["records"]
+
+
+def test_tracks_index_lists_all_tracks():
+    index_path = OUT_DIR / "tracks.json"
+    if not index_path.exists():
+        pytest.skip("ejecuta primero: python scripts/build_tracks.py")
+    index = json.loads(index_path.read_text())
+    assert [t["id"] for t in index] == ["temperature", "co2", "sea_ice"]
+    for t in index:
+        assert (OUT_DIR.parent / t["file"]).exists()

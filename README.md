@@ -19,6 +19,13 @@ Cada decisión de diseño se evalúa contra esta frase.
 
 La página de la visualización enlaza este mismo CSV, así que **lo que se ve y lo que se oye salen de los mismos datos**.
 
+### Pistas extra del jukebox
+
+| Pista | Visualización | Datos |
+|---|---|---|
+| CO₂ atmosférico | [SVS 5119 — OCO-2 and Keeling Curve](https://svs.gsfc.nasa.gov/5119/) (último fotograma, con cursor) | [NOAA GML — CO₂ mensual de Mauna Loa](https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv), 1958–hoy |
+| Hielo marino ártico | [SVS 5395 — Annual Arctic Sea Ice Minimum Area 1979–2024](https://svs.gsfc.nasa.gov/5395/) | [NSIDC Sea Ice Index v4 (G02135)](https://noaadata.apps.nsidc.org/NOAA/G02135/north/monthly/data/), extensión mensual 1979–hoy |
+
 ## Diseño del sonido (mapeo v1)
 
 Regla general: **más caliente = más agudo, más brillante y más tenso**.

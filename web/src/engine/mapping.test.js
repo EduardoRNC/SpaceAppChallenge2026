@@ -6,6 +6,7 @@ import {
   MINOR_PENTA,
   SCALES,
   clusterLevels,
+  configFromTrack,
   cutoffFor,
   frameTargets,
   warmthRange,
@@ -17,6 +18,8 @@ import {
   pulseTimes,
   scaleFor,
   stepFor,
+  stressOf,
+  valueForStress,
   tension,
   yearlyMeans,
 } from "./mapping.js";
@@ -129,4 +132,29 @@ test("yearlyMeans agrupa por año e incluye años incompletos", () => {
   assert.equal(means.length, 2);
   assert.ok(Math.abs(means[0].v - 0.3) < 1e-9);
   assert.deepEqual([means[1].year, means[1].months], [2001, 1]);
+});
+
+// --- Varias pistas (Paso 8) -------------------------------------------------------
+
+test("temperatura: el estrés es la propia anomalía (identidad)", () => {
+  for (const v of [-0.5, 0, 0.7, 1.4]) assert.ok(Math.abs(stressOf(v, cfg) - v) < 1e-12);
+});
+
+test("CO₂: 315 ppm = estrés 0 y 425 ppm = estrés máximo; la tónica es 350 ppm", () => {
+  const co2 = configFromTrack({ baseline: 350, range: [310, 435], sound: { stressZero: 315, stressFull: 425 } });
+  assert.equal(stressOf(315, co2), 0);
+  assert.ok(Math.abs(stressOf(425, co2) - 1.4) < 1e-12);
+  assert.equal(noteFor(350, 0, co2), 60);
+  assert.ok(tension(420, co2) > tension(360, co2));
+  assert.ok(Math.abs(valueForStress(0.7, co2) - 370) < 1e-9);
+});
+
+test("hielo: menos hielo = más tensión, pero tono más grave", () => {
+  const ice = configFromTrack({ baseline: 0, range: [-3.1, 1.3], sound: { stressZero: 0, stressFull: -2 } });
+  assert.ok(stressOf(-1.5, ice) > stressOf(0.5, ice));
+  assert.ok(intensity(-1.8, ice) > intensity(0, ice));
+  assert.ok(pulseBpm(-2, ice) > pulseBpm(0, ice));
+  assert.ok(clusterLevels(-1.8, ice).minorSecond > 0);
+  assert.ok(noteFor(-1.5, 0, ice) < noteFor(0.5, 0, ice)); // tono: menos hielo = más grave
+  assert.ok(cutoffFor(-1.5, ice) > cutoffFor(0.5, ice)); // brillo sigue a la tensión
 });

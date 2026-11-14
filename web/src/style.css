@@ -23,6 +23,11 @@ a {
   color: var(--accent);
 }
 
+/* `hidden` siempre gana, aunque otra regla fije `display`. */
+[hidden] {
+  display: none !important;
+}
+
 :focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 3px;
@@ -52,6 +57,36 @@ a {
   aspect-ratio: 1;
   background: #000;
   border-radius: 0.5rem;
+}
+
+.spiral video {
+  max-width: 40rem;
+}
+
+.still {
+  position: relative;
+  width: 100%;
+  max-width: 40rem;
+  background: #000;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.still img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Cursor que marca el año que suena sobre la imagen fija (CO₂). */
+.playhead {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--focus);
+  box-shadow: 0 0 6px var(--focus);
+  pointer-events: none;
 }
 
 .spiral figcaption {

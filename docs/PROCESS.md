@@ -126,6 +126,30 @@ La primera medida, "rojez" (R − B), daba r = 0.92 pero **se saturaba desde el 
 
 **Capa sonora "frames":** un acorde agudo y limpio (Do5–Sol5 en triángulo) con trémolo. La calidez del color de cada vuelta controla su volumen y la velocidad del trémolo, de 1.5 a 10 Hz: de un brillo tranquilo a una agitación. Es la única capa que sale de los **píxeles** y no del CSV.
 
+## Pistas extra: CO₂ y hielo ártico (Paso 8)
+
+**Un solo motor para varias pistas: la escala de "estrés".** Cada pista traduce su valor a la escala de la temperatura (estrés de 0 a 1.4) con `sound.stressZero` y `sound.stressFull`. Así reutiliza exactamente los mismos umbrales de tensión que ya se validaron de oído: escala menor, roce de 2ª menor, tritono, latido y crescendo. El **tono** sigue al valor de cada pista (más valor = más agudo); la **tensión** sigue al estrés.
+
+| Pista | Datos | Tónica (drone) | Estrés 0 → 1.4 | Campanita |
+|---|---|---|---|---|
+| Temperatura | GISTEMP v4, anomalía mensual 1880–2026 | 0 °C (media 1951–1980) | 0 → +1.4 °C | año récord de calor |
+| CO₂ | NOAA GML Mauna Loa, mensual 1958–2026 | 350 ppm (nivel "seguro") | 315 → 425 ppm | hito cruzado: 325 (1970), 350 (1988), 375 (2003), 400 (2015), 425 ppm (2025) |
+| Hielo ártico | NSIDC Sea Ice Index v4, anomalía mensual vs 1981–2010, 1979–2026 | 0 (media 1981–2010) | 0 → **−2** millones de km² | año récord de **mínimo** |
+
+Decisiones:
+
+- **CO₂: campanita por hito, no por récord.** Casi todos los años son récord de CO₂, así que una campana anual sería ruido. Los hitos de 25 ppm conservan el significado de "algo importante pasó".
+- **Hielo: la tensión crece cuando el valor baja.** Con `stressFull < stressZero`, menos hielo da más tensión, latido más rápido y más brillo. En cambio el tono baja: la melodía se hunde a medida que el hielo desaparece, que es intuitivo. Hay un test que lo comprueba.
+- **Hielo: anomalías y no extensión bruta.** La extensión cambia de unos 15 a unos 4 millones de km² cada año por las estaciones, y ese ciclo taparía la tendencia. Las anomalías respecto a la media de cada mes muestran la pérdida.
+- **Hueco conocido:** faltan dic-1987 y ene-1988 por un fallo del satélite de la época. Se omiten.
+
+**Visualizaciones:**
+
+- **CO₂ (SVS 5119, OCO-2 and Keeling Curve):** el vídeo dibuja 2015–2023 y luego se aleja hasta 1958, así que **no es cronológico** y no se puede sincronizar por tiempo. Se usa su **último fotograma** (la curva completa 1958–mar 2023) con un **cursor** que se desliza hasta el año que suena. Las marcas del eje (1960…2020) se midieron en píxeles: 259, 476.5, 715.5, 933, 1150.5, 1389.5 y 1607, con mar-2023 en 1676. No son equidistantes, así que se interpola por tramos. Después de mar-2023 (el fin de la imagen) el cursor se queda al final.
+- **Hielo (SVS 5395, Annual Arctic Sea Ice Minimum Area 1979–2024):** el EIC no tiene una visualización de hielo de varias décadas. Esta es del mismo estudio (SVS). Para calibrarla se siguió **automáticamente el punto rojo más a la derecha** del gráfico en cada fotograma: 1979 aparece a 4.45 s, 2024 a unos 40 s, y el avance es lineal (0.789 s/año, 13.7 px/año). Los datos llegan hasta 2026; a partir de 2024 el vídeo queda fijo.
+
+**Velocidad:** ahora se elige por duración total (25 s, 1 min, 2.5 min, 5 min) y cada pista ajusta sus segundos por año según cuántos años tiene.
+
 ## Vídeo y calibración
 
 Vídeo: [SVS 5190](https://svs.gsfc.nasa.gov/5190/), versión en español en °C. El original es de 2160×2160, 60 fps y 30 s (1800 frames). Para la web se convierte a 1080×1080 con `scripts/prepare_video.py`.

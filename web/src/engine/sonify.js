@@ -27,6 +27,7 @@ import {
   midiToFreq,
   noteFor,
   pulseTimes,
+  valueForStress,
   warmthRange,
   yearlyMeans,
 } from "./mapping.js";
@@ -315,7 +316,9 @@ export function createEngine() {
     await ensureGraph();
     const g = graph;
     const now = Tone.now() + 0.05;
-    const calm = { v: 0, w: null };
+    // Los ejemplos se expresan en "estrés" y se traducen a valores de la pista actual.
+    const at = (s) => valueForStress(s, cfg);
+    const calm = { v: at(0), w: null };
     // Mantiene un fondo (drone y/o shimmer) durante `seconds` con los valores de `year`.
     const hold = (envs, year, seconds) => {
       for (const [param, value] of continuousTargets(year)) resetParam(param, value, now);
@@ -331,7 +334,8 @@ export function createEngine() {
         hold([g.droneEnv], calm, 1.8);
         return wait(1800);
       case "pitch": {
-        const values = [-0.5, -0.1, 0.3, 0.7, 1.1, 1.5];
+        // De menos a más estrés: en el hielo, estas notas BAJAN (menos hielo = más grave).
+        const values = [-0.5, -0.1, 0.3, 0.7, 1.1, 1.5].map(at);
         values.forEach((v, i) => {
           const time = now + i * 0.28;
           g.brightness.frequency.setValueAtTime(cutoffFor(v, cfg), time);
@@ -342,7 +346,8 @@ export function createEngine() {
       case "months": {
         for (let i = 0; i < 12; i++) {
           const time = now + i * 0.11;
-          const midi = noteFor(0.1 * Math.sin(i), i, cfg);
+          const [lo, hi] = cfg.range;
+          const midi = noteFor(cfg.baseline + 0.04 * (hi - lo) * Math.sin(i * 1.7), i, cfg);
           g.arp.triggerAttack(midiToFreq(midi + 12), time);
           g.ostinato.triggerAttackRelease(midiToFreq(midi - 12), 0.08, time, i === 0 ? 0.9 : 0.5);
         }
@@ -350,13 +355,13 @@ export function createEngine() {
       }
       case "pulse": {
         let time = now;
-        for (let i = 0; i < 2; i++, time += 60 / 54) pulseHit(time, 0);
-        for (let i = 0; i < 4; i++, time += 60 / 144) pulseHit(time, 1.4);
+        for (let i = 0; i < 2; i++, time += 60 / cfg.pulseBpmMin) pulseHit(time, at(0));
+        for (let i = 0; i < 4; i++, time += 60 / cfg.pulseBpmMax) pulseHit(time, at(1.4));
         return wait((time - now) * 1000 + 200);
       }
       case "tension": {
         const from = continuousTargets(calm);
-        const to = continuousTargets({ v: 1.5, w: null });
+        const to = continuousTargets({ v: at(1.5), w: null });
         hold([g.droneEnv], calm, 2.4);
         to.forEach(([param, value], i) => {
           param.setValueAtTime(from[i][1], now + 0.5);
@@ -368,7 +373,7 @@ export function createEngine() {
         const hasFrames = years.some((y) => y.w != null);
         if (!hasFrames) return wait(0);
         const [lo, hi] = wRange;
-        hold([g.framesEnv], { v: 0, w: lo }, 2.2);
+        hold([g.framesEnv], { v: at(0), w: lo }, 2.2);
         const f = frameTargets(hi, wRange);
         g.framesLevel.gain.linearRampToValueAtTime(f.level, now + 1.6);
         g.tremolo.frequency.linearRampToValueAtTime(f.tremoloHz, now + 1.6);
