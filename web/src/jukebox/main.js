@@ -14,6 +14,12 @@ import { createPianoRoll } from "./pianoroll.js";
 import { createRegionCharts, renderMappingList } from "./regions.js";
 
 const MANIFEST = "data/jukebox/ecco2.json";
+// Altavoz: con ondas mientras suena, tachado cuando la pista está silenciada (lo elige el CSS).
+const SPEAKER_ICON = `<svg class="jb-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+  <path class="jb-speaker" d="M4 9h4l5-4v14l-5-4H4z" />
+  <path class="jb-waves" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" />
+  <path class="jb-cross" d="M16 9l6 6M22 9l-6 6" />
+</svg>`;
 const STEP_S = 5;
 const SEEK_TIMEOUT_MS = 2000;
 
@@ -87,7 +93,9 @@ function applyMix() {
   transport.setGains(gains(states));
   for (const s of states) {
     const row = el.stems.querySelector(`[data-stem="${s.id}"]`);
-    row.querySelector(".jb-mute").setAttribute("aria-pressed", String(s.mute));
+    const mute = row.querySelector(".jb-mute");
+    mute.setAttribute("aria-pressed", String(s.mute));
+    mute.title = `${s.mute ? "Activar sonido" : "Silenciar"} (tecla ${states.indexOf(s) + 1})`;
     row.querySelector(".jb-solo").setAttribute("aria-pressed", String(s.solo));
     row.classList.toggle("jb-silent", gains(states)[s.id] === 0);
   }
@@ -121,7 +129,7 @@ function buildStemRows() {
         <span class="jb-name"><strong>${s.label}</strong><small>Referencia DX7: ${s.instrument.split(" - ").pop()}</small></span>
         <span class="jb-meter" aria-hidden="true"><span></span></span>
         <button type="button" class="jb-mute" aria-pressed="false"
-          aria-label="Silenciar ${s.label}" title="Silenciar (tecla ${i + 1})">M</button>
+          aria-label="Silenciar ${s.label}" title="Silenciar (tecla ${i + 1})">${SPEAKER_ICON}</button>
         <button type="button" class="jb-solo" aria-pressed="false"
           aria-label="Solo ${s.label}" title="Solo (Mayús + ${i + 1})">S</button>`;
       li.querySelector(".jb-mute").addEventListener("click", () => toggleStem(s.id, "mute"));

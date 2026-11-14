@@ -141,6 +141,34 @@ body {
   font-weight: 700;
 }
 
+.jb-mute {
+  display: inline-grid;
+  place-items: center;
+}
+
+.jb-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.jb-icon .jb-speaker {
+  fill: currentColor;
+}
+
+.jb-mute .jb-cross,
+.jb-mute[aria-pressed="true"] .jb-waves {
+  display: none;
+}
+
+.jb-mute[aria-pressed="true"] .jb-cross {
+  display: inline;
+}
+
 .jb-mute[aria-pressed="true"] {
   background: #d64545;
   border-color: #d64545;
@@ -152,7 +180,7 @@ body {
   color: var(--bg);
 }
 
-.jb-stems li.jb-silent {
+.jb-stems li.jb-silent :is(.jb-swatch, .jb-name, .jb-meter) {
   opacity: 0.55;
 }
 
