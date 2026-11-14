@@ -15,6 +15,12 @@ const els = {
 
 const engine = createEngine();
 
+const blindToggle = $("blind-mode");
+const blindMode = () => blindToggle.checked;
+blindToggle.addEventListener("change", () => {
+  document.body.classList.toggle("blind", blindMode());
+});
+
 const formatValue = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)} °C`;
 
 function setPlayingUI(playing) {
@@ -42,7 +48,8 @@ async function init() {
     els.value.textContent = formatValue(value);
     sync.onYear(index);
     // Solo se anuncia cada década: anunciar cada año saturaría al lector de pantalla.
-    if (year % 10 === 0) els.status.textContent = `Década de ${year}`;
+    // En la prueba a ciegas no se anuncia nada, para no dar pistas.
+    if (year % 10 === 0 && !blindMode()) els.status.textContent = `Década de ${year}`;
   });
 
   engine.on("end", () => {

@@ -116,6 +116,12 @@ fieldset label {
   padding-block: 0.25rem;
 }
 
+/* Prueba a ciegas: quien escucha no ve el vídeo, el año ni el valor. */
+body.blind .spiral,
+body.blind .readout {
+  visibility: hidden;
+}
+
 footer {
   margin-top: 3rem;
   color: var(--muted);
