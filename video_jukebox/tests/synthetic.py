@@ -44,7 +44,8 @@ def synthetic_features(seconds=24.0, fps=30.0, seed=0, width=512):
     return feat
 
 
-def write_synthetic_video(path, seconds=4.0, fps=30.0, size=(256, 128)):
+def write_synthetic_video(path, seconds=4.0, fps=30.0, size=(256, 128), overlay=False):
+    """overlay=True incrusta una 'barra de color' fija abajo a la izquierda, como algunas versiones del SVS."""
     import cv2
     w, h = size
     vw = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), fps, (w, h))
@@ -61,6 +62,11 @@ def write_synthetic_video(path, seconds=4.0, fps=30.0, size=(256, 128)):
         hsv[..., 1] = np.where(lines, 220, 0)
         hsv[..., 2] = np.where(lines, 230, 20)
         hsv[land] = (0, 0, 128)
+        if overlay:
+            y0, x0, bw = int(0.92 * h), int(0.02 * w), int(0.15 * w)
+            hsv[y0:y0 + max(3, h // 25), x0:x0 + bw] = np.stack(
+                [np.linspace(120, 0, bw).astype(np.uint8), np.full(bw, 230, np.uint8),
+                 np.full(bw, 230, np.uint8)], -1)
         vw.write(cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR))
     vw.release()
     return path

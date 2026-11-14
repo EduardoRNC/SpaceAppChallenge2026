@@ -120,10 +120,13 @@ def test_clean_synthetic_data_has_no_warnings(timeline):
 
 # --- Sincronía con el BPM -------------------------------------------------
 
-@pytest.mark.parametrize("bpm", [90, 100, 75])
+@pytest.mark.parametrize("bpm", [90, 100, 75, 80])
 def test_note_times_follow_composer_bpm(feat, bpm):
     tl = et.build_timeline(feat, events_for(feat, bpm))
-    spb = 60.0 / bpm
+    fps = float(feat["fps"])
+    effective = 60 * fps / round(fps * 60 / bpm)        # 80 BPM a 30 fps -> 81.82
+    assert tl["timing"]["bpm"] == pytest.approx(effective)
+    spb = 60.0 / effective
     assert tl["timing"]["seconds_per_beat"] == pytest.approx(spb)
     assert tl["timing"]["music_duration_s"] == pytest.approx(tl["timing"]["beats"] * spb)
     for n in tl["notes"]:
@@ -183,11 +186,34 @@ def test_low_cover_warns(feat):
     assert any("antartico" in w and "cobertura" in w for w in tl["validation"]["warnings"])
 
 
-def test_fractional_frames_per_beat_reports_drift():
+@pytest.mark.parametrize("fps", [29.97, 25.0, 24.0])
+def test_composer_tempo_is_locked_to_video_frames(fps):
+    f = synthetic_features(seconds=60, fps=fps)
+    ev = events_for(f)
+    assert ev["meta"]["bpm_requested"] == compose.BPM
+    assert ev["meta"]["bpm"] == pytest.approx(60 * float(f["fps"]) / ev["meta"]["fpb"])
+    tl = et.build_timeline(f, ev)
+    assert tl["validation"]["checks"]["drift_at_end_s"] == pytest.approx(0, abs=1e-6)
+    assert not any("deriva" in w for w in tl["validation"]["warnings"])
+
+
+def test_export_still_warns_on_events_with_nominal_bpm():
     f = synthetic_features(seconds=60, fps=29.97)
-    tl = et.build_timeline(f, events_for(f))
+    ev = events_for(f)
+    ev["meta"]["bpm"] = 90.0                         # como los events.json anteriores al ajuste
+    tl = et.build_timeline(f, ev)
     assert abs(tl["validation"]["checks"]["drift_at_end_s"]) > 1 / 29.97
     assert any("deriva" in w for w in tl["validation"]["warnings"])
+
+
+def test_no_notes_after_incomplete_last_bar():
+    f = synthetic_features(seconds=20)               # 30 beats: el último compás tiene 2
+    tl = et.build_timeline(f, events_for(f))
+    beats = tl["timing"]["beats"]
+    assert beats % compose.BEATS_PER_BAR != 0
+    bass = [n for n in tl["notes"] if n["track"] == "ecuatorial"]
+    assert bass and all(n["beat"] + n["dur_beats"] <= beats + 1e-9 for n in bass)
+    assert tl["validation"]["checks"]["notes_starting_after_end"] == 0
 
 
 @pytest.mark.parametrize("mutate, match", [
@@ -264,3 +290,52 @@ def test_synthetic_video_through_analyze(tmp_path):
     tl = strict_json(et.build_timeline(feat, events_for(feat)))
     assert len(tl["regions"]) == 5 and len(tl["channels"]) == 4
     assert not math.isnan(tl["timing"]["music_duration_s"])
+
+
+# --- Herramientas de validación con material real ------------------------
+
+@pytest.mark.parametrize("overlay", [False, True])
+def test_mask_check_finds_static_overlay(tmp_path, overlay):
+    import mask_check
+    video = write_synthetic_video(tmp_path / "v.avi", seconds=3, size=(512, 256), overlay=overlay)
+    frames = mask_check.sample_frames(str(video), 20, 512)
+    mask, temp, persist, static = mask_check.check(frames)
+    rows = slice(int(0.92 * 256), int(0.92 * 256) + 10)
+    if overlay:
+        assert static[rows, 10:80].mean() > 0.8
+        assert static[:200].sum() == 0
+    else:
+        assert static.sum() == 0
+
+
+def test_flow_experiment_keyframe_window():
+    import flow_experiment as fx
+    key = np.zeros(50, bool)
+    key[[0, 24, 48]] = True
+    t1 = fx.touches_key(key, 49, 1)
+    assert np.where(t1)[0].tolist() == [0, 23, 24, 47, 48]
+    t6 = fx.touches_key(key, 49, 6)
+    assert t6[23:30].all() and not t6[22] and not t6[30]     # frames [i-5, i+1] contienen el 24
+
+
+def test_flow_experiment_stride1_matches_analyze(tmp_path):
+    import analyze
+    import flow_experiment as fx
+    video = str(write_synthetic_video(tmp_path / "v.avi", seconds=2, fps=30))
+    s1, u1, sn, un = fx.measure(video, 6, 128)
+    ref = analyze.analyze(video, width=128)
+    assert np.allclose(s1, ref["speed"], atol=1e-5) and np.allclose(u1, ref["u"], atol=1e-5)
+    assert np.isnan(sn[:5]).all() and not np.isnan(sn[5:]).any()
+
+
+def test_diagnostics_plots(tmp_path, timeline):
+    import cv2
+    import diagnostics
+    out = tmp_path / "diag.png"
+    diagnostics.plot_timeline(timeline, out)
+    assert out.stat().st_size > 10_000
+    bar = np.zeros((60, 300, 3), np.uint8)
+    bar[20:40, 10:290] = np.stack([np.linspace(120, 0, 280), np.full(280, 230), np.full(280, 230)], -1).astype(np.uint8)
+    cv2.imwrite(str(tmp_path / "bar.png"), cv2.cvtColor(bar, cv2.COLOR_HSV2BGR))
+    deg, idx = diagnostics.colorbar_index(str(tmp_path / "bar.png"), 0, 32)
+    assert np.all(np.diff(idx) >= -0.02) and idx[0] < 0.1 and idx[-1] > 0.9

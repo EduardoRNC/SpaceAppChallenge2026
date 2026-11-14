@@ -47,6 +47,21 @@ y un video MJPG pequeño creado al vuelo. Comprueban que el timeline tiene 5 reg
 que el tiempo de cada nota es `beat × 60 / BPM` y coincide con los ticks del MIDI escrito, y que la
 validación rechaza dimensiones, FPS o pares features/events incoherentes.
 
+### Validar con el video real ECCO2 (SVS 3912)
+
+```bash
+python fetch_ecco2.py [--control]      # video oficial + fechas + barra de color -> data/media/ecco2/
+python diagnostics.py out/x_timeline.json out/x_diag --dates ../data/media/ecco2/flat_ecco2_dates.txt \
+    --colorbar ../data/media/ecco2/sst_ecco2_cbar.png       # gráficos por región + piano-roll
+python mask_check.py video.mp4 out/x    # qué entra en la máscara; detecta textos/leyendas estáticos
+python flow_experiment.py video.mp4 --plot out/x_flow.png   # flujo óptico: señal frente a ruido del códec
+```
+
+Resultados, procedencia, licencia, comandos completos y limitaciones:
+[`docs/ECCO2_VALIDATION.md`](../docs/ECCO2_VALIDATION.md). Resumen: el índice de color sigue las
+estaciones; las variaciones de movimiento y turbulencia están dominadas por el ruido de compresión
+del video (la dirección media sí es coherente); la música no se desfasa del video.
+
 ## Cómo funciona (4 pasos)
 
 ```
@@ -79,7 +94,9 @@ sus medidas quedan a 0; `band_pixels` (píxeles por franja) permite distinguir e
   oscuros en invierno boreal y brillantes en verano. Todas las voces tocan SOLO notas del acorde
   vigente: la armonía queda garantizada aunque los datos sean caóticos.
 - **Tempo:** 90 BPM → 1 tiempo = 20 frames a 30 fps. Los datos se suavizan (mediana + media de 1 s)
-  y se promedian por tiempo.
+  y se promedian por tiempo. Si `fps × 60 / bpm` no es entero, el tempo se ajusta al número entero
+  de frames por beat más cercano (p. ej. 25 fps y 90 BPM → 17 frames → 88.24 BPM) para que la música
+  no se desfase del video; `events.json` guarda `bpm` (el usado) y `bpm_requested`.
 
 | Canal | Instrumento DX7 | Datos |
 |---|---|---|
@@ -114,9 +131,9 @@ Junta `features.npz` y `events.json` en un JSON con todo en segundos:
 frames sin dato o valores no finitos (se exportan como `null`), cobertura media < 2 %, deriva
 música-video, frames por beat impares y notas que empiezan después del final.
 
-**Deriva música-video.** `compose.py` redondea `fps × 60 / bpm` a frames enteros por beat. A 30 fps y
-90 BPM es exacto (20); a 29.97 fps la música se desfasa ~0.06 s por minuto y a 25 fps ~1.2 s por minuto
-(17 frames por beat, además impar). `notes[].t` sigue el reloj del audio; `features.t` el del video.
+**Deriva música-video.** `notes[].t` sigue el reloj del audio y `features.t` el del video. Con el
+tempo ajustado de `compose.py` coinciden; el aviso de deriva salta con `events.json` generados por
+versiones anteriores (que usaban el BPM nominal: a 25 fps y 90 BPM se desfasaban ~1.2 s por minuto).
 
 ## Cómo añadir otro tipo de video (luces, CO2, viento, hielo…)
 
