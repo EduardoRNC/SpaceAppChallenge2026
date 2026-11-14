@@ -3,7 +3,9 @@
 
 import { createTransport } from "./transport.js";
 import { createFollower } from "./follower.js";
-import { LEAD_S, videoTarget } from "./clock.js";
+import { createPlayer } from "./player.js";
+import { shortcutFor } from "./keys.js";
+import { videoTarget } from "./clock.js";
 import { gains, initialStates, reset, toggle } from "./mix.js";
 import { barBeat, formatDate, formatTime, frameAt, modelDate } from "./format.js";
 import { assetUrl, checkManifest } from "./manifest.js";
@@ -32,7 +34,7 @@ const el = {
   debug: $("jb-debug-values"),
 };
 
-let manifest, transport, follower, states, scrubbing = null, seekToken = 0, decodeInfo = "";
+let manifest, transport, follower, player, states, scrubbing = null, decodeInfo = "";
 const say = (text) => (el.status.textContent = text);
 
 async function fetchBytes(url) {
@@ -45,62 +47,29 @@ function waitSeeked(video) {
   if (!video.seeking) return Promise.resolve();
   return new Promise((resolve) => {
     const done = () => {
+      clearTimeout(timer);
       video.removeEventListener("seeked", done);
       resolve();
     };
+    const timer = setTimeout(done, SEEK_TIMEOUT_MS);
     video.addEventListener("seeked", done);
-    setTimeout(done, SEEK_TIMEOUT_MS);
   });
 }
 
+const videoDuration = () => el.video.duration || manifest.video.duration_s;
+
 function showFrameAt(t) {
-  el.video.currentTime = videoTarget(t, el.video.duration || manifest.video.duration_s, manifest.video.fps);
+  el.video.currentTime = videoTarget(t, videoDuration(), manifest.video.fps);
 }
 
-/** Arranca (o rearranca) en t: espera a que el vídeo tenga el fotograma y entonces suena. */
-async function startAt(t) {
-  const token = ++seekToken;
-  transport.pause();
-  el.video.pause();
-  showFrameAt(t);
-  await waitSeeked(el.video);
-  if (token !== seekToken) return;
-  await transport.play(t);
+function onPlayerChange(event) {
   updatePlayButton();
-  // El vídeo arranca cuando empieza a oírse el audio (margen de arranque + latencia de salida).
-  setTimeout(() => {
-    if (token !== seekToken || !transport.playing) return;
-    follower.resetWindow();
-    follower.start();
-    el.video.play().catch(() => {});
-  }, (LEAD_S + transport.latency()) * 1000);
-}
-
-function pause() {
-  seekToken += 1;
-  follower.stop();
-  const t = transport.pause();
-  el.video.pause();
-  showFrameAt(t);
-  updatePlayButton();
-}
-
-function togglePlay() {
-  if (transport.playing) pause();
-  else startAt(transport.state.offset >= manifest.audio.duration_s - 0.05 ? 0 : transport.state.offset);
-}
-
-function jump(t) {
-  const target = Math.min(manifest.audio.duration_s, Math.max(0, t));
-  if (transport.playing) startAt(target);
-  else {
-    transport.seek(target);
-    showFrameAt(target);
-  }
+  if (event === "end") say("Fin. Pulsa Reproducir para empezar de nuevo.");
+  else if (event === "start" && el.status.textContent.startsWith("Fin")) say("");
 }
 
 function updatePlayButton() {
-  const playing = transport.playing;
+  const playing = player.playing;
   el.play.textContent = playing ? "Pausa" : "Reproducir";
   el.play.setAttribute("aria-pressed", String(playing));
 }
@@ -194,16 +163,35 @@ function updateReadout() {
   requestAnimationFrame(updateReadout);
 }
 
+function runShortcut(action) {
+  const ids = manifest.audio.stems.map((s) => s.id);
+  switch (action.type) {
+    case "toggle":
+      return player.togglePlay();
+    case "step":
+      return player.jump(player.position() + action.direction * STEP_S);
+    case "start":
+      return player.jump(0);
+    case "end":
+      return player.jump(manifest.audio.duration_s);
+    case "mute":
+    case "solo":
+      return toggleStem(ids[action.index], action.type);
+    case "reset":
+      return setMix(reset(states), "Todas las pistas con sonido.");
+  }
+}
+
 function bindTransport() {
-  el.play.addEventListener("click", togglePlay);
-  el.back.addEventListener("click", () => jump(transport.position() - STEP_S));
-  el.fwd.addEventListener("click", () => jump(transport.position() + STEP_S));
+  el.play.addEventListener("click", () => player.togglePlay());
+  el.back.addEventListener("click", () => player.jump(player.position() - STEP_S));
+  el.fwd.addEventListener("click", () => player.jump(player.position() + STEP_S));
   el.reset.addEventListener("click", () => setMix(reset(states), "Todas las pistas con sonido."));
 
   el.seek.addEventListener("input", () => {
     if (scrubbing === null) {
-      scrubbing = { resume: transport.playing };
-      if (transport.playing) pause();
+      scrubbing = { resume: player.playing };
+      if (player.playing) player.pause();
     }
     showFrameAt(Number(el.seek.value));
   });
@@ -211,38 +199,17 @@ function bindTransport() {
     const resume = scrubbing?.resume;
     scrubbing = null;
     const t = Number(el.seek.value);
-    if (resume) startAt(t);
-    else jump(t);
+    if (resume) player.startAt(t);
+    else player.jump(t);
   });
 
-  transport.onEnded(() => {
-    follower.stop();
-    el.video.pause();
-    updatePlayButton();
-    say("Fin. Pulsa Reproducir para empezar de nuevo.");
-  });
+  transport.onEnded(() => player.handleEnded());
 
   document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-    const tag = e.target instanceof HTMLElement ? e.target.tagName : "";
-    const onRange = tag === "INPUT" && e.target.type === "range";
-    const onButton = tag === "BUTTON" || tag === "A";
-    const digit = /^Digit([1-4])$/.exec(e.code);
-    if (e.key === " " && !onRange && !onButton) {
-      e.preventDefault();
-      togglePlay();
-    } else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !onRange) {
-      e.preventDefault();
-      jump(transport.position() + (e.key === "ArrowLeft" ? -STEP_S : STEP_S));
-    } else if (e.key === "Home" && !onRange) {
-      e.preventDefault();
-      jump(0);
-    } else if (digit) {
-      const id = manifest.audio.stems[Number(digit[1]) - 1].id;
-      toggleStem(id, e.shiftKey ? "solo" : "mute");
-    } else if (e.code === "Digit0") {
-      setMix(reset(states), "Todas las pistas con sonido.");
-    }
+    const action = shortcutFor(e, manifest.audio.stems.length);
+    if (!action) return;
+    e.preventDefault();
+    runShortcut(action);
   });
 }
 
@@ -280,8 +247,18 @@ async function init() {
 
     transport = createTransport(ctx, stems, manifest.audio.duration_s);
     follower = createFollower(el.video, transport, manifest.video.fps);
+    player = createPlayer({
+      video: el.video,
+      transport,
+      follower,
+      duration: manifest.audio.duration_s,
+      videoDuration,
+      fps: manifest.video.fps,
+      waitSeeked,
+      onChange: onPlayerChange,
+    });
     states = initialStates(manifest.audio.stems.map((s) => s.id));
-    Object.assign(window.jukeboxDebug, { manifest, transport, follower, ctx, stems, getStates: () => states });
+    Object.assign(window.jukeboxDebug, { manifest, transport, follower, player, ctx, stems, getStates: () => states });
 
     buildStemRows();
     applyMix();

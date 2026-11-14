@@ -82,11 +82,13 @@ export function createTransport(ctx, stems, duration) {
     position(perfNow) {
       return audiblePosition(state, audibleContextTime(perfNow));
     },
-    /** Arranca en `at` (por defecto, donde se pausó). Devuelve el instante de arranque. */
-    async play(at = state.offset) {
-      await ctx.resume();
-      const t = clampT(at) >= duration - 0.05 ? 0 : clampT(at);
-      return startAt(t);
+    /** Despierta el AudioContext (asíncrono: el navegador puede tardar en concederlo). */
+    resume() {
+      return ctx.resume();
+    },
+    /** Arranca ya en `at` (por defecto, donde se pausó). Devuelve el instante de arranque. */
+    start(at = state.offset) {
+      return startAt(clampT(at));
     },
     pause() {
       const p = this.position();
