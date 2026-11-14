@@ -57,6 +57,9 @@ Requisitos: Python 3.10 o superior, Node 18 o superior y ffmpeg.
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/check_env.py   # verifica el entorno
+.venv/bin/python scripts/fetch_data.py  # descarga GISTEMP a data/raw/
+.venv/bin/python scripts/build_tracks.py  # genera web/public/data/temperature.json
+.venv/bin/pytest                        # tests de datos
 
 # Web
 cd web
@@ -79,7 +82,7 @@ docs/        proceso creativo, decisiones y tests de escucha
 
 - [x] Paso 0 — Frase guía y mapeo v1
 - [x] Paso 1 — Esqueleto del repo
-- [ ] Paso 2 — Pipeline de datos
+- [x] Paso 2 — Pipeline de datos
 - [ ] Paso 3 — Primer sonido
 - [ ] Paso 4 — Test a ciegas y ajuste
 - [ ] Paso 5 — Vídeo y sincronía
