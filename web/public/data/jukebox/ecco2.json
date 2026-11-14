@@ -1,0 +1,122 @@
+{
+  "schema": "earth-jukebox-web",
+  "version": 1,
+  "title": "Corrientes y temperatura del océano (ECCO2)",
+  "generated_by": "video_jukebox/build_web.py",
+  "paths_relative_to": "la página (web/jukebox.html); válido con base './' en GitHub Pages",
+  "video": {
+    "src": "media/jukebox/ecco2.mp4",
+    "fps": 30.0,
+    "frames": 2001,
+    "duration_s": 66.7,
+    "width": 1280,
+    "height": 640
+  },
+  "audio": {
+    "sample_rate": 44100,
+    "samples": 2984099,
+    "duration_s": 67.6666439909297,
+    "gain": 2.1540196500910596,
+    "headroom_db": 1.0,
+    "codec": "AAC 128 kb/s",
+    "stems": [
+      {
+        "id": "temperatura",
+        "channel": 0,
+        "label": "Temperatura",
+        "color": "#ff6b4a",
+        "instrument": "Temperatura - STRINGS 1",
+        "src": "media/jukebox/ecco2_temperatura.m4a",
+        "first_note_s": 0.0
+      },
+      {
+        "id": "corrientes",
+        "channel": 1,
+        "label": "Corrientes",
+        "color": "#4cc9f0",
+        "instrument": "Corrientes - FLUTE 1",
+        "src": "media/jukebox/ecco2_corrientes.m4a",
+        "first_note_s": 0.6666666666666666
+      },
+      {
+        "id": "remolinos",
+        "channel": 2,
+        "label": "Remolinos",
+        "color": "#c77dff",
+        "instrument": "Remolinos - TUB BELLS",
+        "src": "media/jukebox/ecco2_remolinos.m4a",
+        "first_note_s": 0.3333333333333333
+      },
+      {
+        "id": "ecuatorial",
+        "channel": 3,
+        "label": "Corriente ecuatorial",
+        "color": "#f4b942",
+        "instrument": "Corriente ecuatorial - BASS 1",
+        "src": "media/jukebox/ecco2_ecuatorial.m4a",
+        "first_note_s": 0.0
+      }
+    ]
+  },
+  "timeline": {
+    "src": "data/jukebox/ecco2_timeline.json",
+    "bpm": 90.0,
+    "music_duration_s": 66.666667
+  },
+  "model_time": {
+    "first": "2007-03-25T12:00Z",
+    "last": "2008-03-03T12:00Z",
+    "frames": 2001,
+    "step_hours": 4.128,
+    "max_deviation_s": 57.59999990463257,
+    "source": "flat_ecco2_dates.txt"
+  },
+  "credits": [
+    {
+      "role": "Visualización",
+      "text": "NASA/Goddard Space Flight Center Scientific Visualization Studio",
+      "detail": "Greg Shirah, Horace Mitchell (NASA/GSFC), Eric Sokolowsky (GST)",
+      "url": "https://svs.gsfc.nasa.gov/3912/"
+    },
+    {
+      "role": "Ciencia",
+      "text": "Modelo ECCO2 (MIT/JPL)",
+      "detail": "Hong Zhang (UCLA), Dimitris Menemenlis (NASA/JPL)",
+      "url": "https://ecco.jpl.nasa.gov/"
+    },
+    {
+      "role": "Música",
+      "text": "Generada por este proyecto a partir de índices visuales del video",
+      "detail": "Preview FM de 2 operadores (no es Dexed ni un DX7 real)",
+      "url": null
+    }
+  ],
+  "notice": "Proyecto para NASA Space Apps Challenge 2026. No está respaldado por NASA. Visualización de dominio público del NASA SVS.",
+  "disclaimer": "Las características son proxies visuales derivados de los píxeles del video (color y flujo óptico). No son mediciones físicas calibradas.",
+  "assets": {
+    "media/jukebox/ecco2.mp4": {
+      "bytes": 10023016,
+      "sha256": "4e3fbb2e24ab7da7452b247a7346c4eeaacb112c8c52550fc4b26e1fb73263ea"
+    },
+    "data/jukebox/ecco2_timeline.json": {
+      "bytes": 552821,
+      "sha256": "1674b2555e9dbf747b0cd5328169d7309080967d4fe652752eca31675cc811b6"
+    },
+    "media/jukebox/ecco2_temperatura.m4a": {
+      "bytes": 1106879,
+      "sha256": "efc7e0f156d3b1db86d5c962ae3c85f9e2c1151bbbc1c39b93b1bb26ed4bcad6"
+    },
+    "media/jukebox/ecco2_corrientes.m4a": {
+      "bytes": 1094623,
+      "sha256": "9a911f7956669d8f76a261120dfd0c172465e9195214c24fba8ee09cf86c2ae5"
+    },
+    "media/jukebox/ecco2_remolinos.m4a": {
+      "bytes": 829430,
+      "sha256": "30eba2f1b919a5bd4ef7a6d6e2082051e5701c143b560f49e9aeb6bbf78ce572"
+    },
+    "media/jukebox/ecco2_ecuatorial.m4a": {
+      "bytes": 1108529,
+      "sha256": "7df74b7e32b43c3ea1b84295042f7f48ce431430c29307aa0b564e5f51c4e860"
+    }
+  }
+}

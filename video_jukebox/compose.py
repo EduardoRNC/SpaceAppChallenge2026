@@ -95,8 +95,12 @@ def compose(feat, bpm=BPM):
     fps = float(feat["fps"])
     bands = [str(b) for b in feat["bands"]]
     bi = {b: i for i, b in enumerate(bands)}
+    bpm_requested = bpm
+    fpb = int(round(fps * 60.0 / bpm))            # frames por beat
+    # Tempo ajustado a un número entero de frames por beat: así la música no se desfasa del
+    # video (a 30 fps, 90 BPM ya es exacto; a 25 fps, 90 -> 88.24 BPM).
+    bpm = 60.0 * fps / fpb
     sec_per_beat = 60.0 / bpm
-    fpb = int(round(fps * sec_per_beat))          # frames por beat
     win = int(fps)                                  # suavizado de 1 s
 
     temp = np.stack([smooth(feat["temp"][:, i], win) for i in range(len(bands))], 1)
@@ -189,11 +193,13 @@ def compose(feat, bpm=BPM):
         while root > 40:
             root -= 12
         for i, off in enumerate(pat):
-            nxt = pat[i + 1] if i + 1 < len(pat) else BEATS_PER_BAR
+            if b0 + off >= nbeats:                     # último compás incompleto
+                break
+            nxt = min(pat[i + 1] if i + 1 < len(pat) else BEATS_PER_BAR, nbeats - b0)
             note = root + (7 if (i % 4 == 3) else 0)   # quinta de paso ocasional
             events.append((b0 + off, (nxt - off) * 0.9, ch, note, int(70 + 30 * strength)))
 
-    meta = dict(bpm=bpm, nbeats=nbeats, nbars=nbars, fpb=fpb,
+    meta = dict(bpm=bpm, bpm_requested=bpm_requested, nbeats=nbeats, nbars=nbars, fpb=fpb,
                 chords=[c[0] for c in chords], seconds=nbeats * sec_per_beat)
     return events, cc, meta
 
@@ -255,8 +261,9 @@ if __name__ == "__main__":
     a = ap.parse_args()
     feat = np.load(a.features)
     events, cc, meta = compose(feat, a.bpm)
-    write_midi(a.out_mid, events, cc, a.bpm)
-    print(f"OK: {len(events)} notas, {meta['nbars']} compases, {meta['seconds']:.1f} s -> {a.out_mid}")
+    write_midi(a.out_mid, events, cc, meta["bpm"])
+    print(f"OK: {len(events)} notas, {meta['nbars']} compases, {meta['seconds']:.1f} s, "
+          f"{meta['bpm']:.2f} BPM ({meta['fpb']} frames/beat) -> {a.out_mid}")
     print("Acordes:", " | ".join(meta["chords"]))
     if a.events:
         with open(a.events, "w") as f:

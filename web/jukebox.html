@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video jukebox: the ocean that sounds — Earth Information Jukebox</title>
+    <meta
+      name="description"
+      content="Ocean currents and temperature (NASA SVS, ECCO2 model) turned into four voices of music."
+    />
+    <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="./src/jukebox/jukebox.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="page.skip">Skip to content</a>
+    <header class="jb-header">
+      <div class="jb-lang" role="group" aria-label="Language" data-i18n-attr="aria-label:lang.label">
+        <button type="button" lang="en" data-lang="en" aria-pressed="true">English</button>
+        <span aria-hidden="true">/</span>
+        <button type="button" lang="es" data-lang="es" aria-pressed="false">Español</button>
+      </div>
+      <h1 data-i18n="header.title">The ocean that sounds</h1>
+      <p data-i18n-html="header.intro">
+        One year of ocean currents and temperature from the ECCO2 model, as shown in the NASA SVS
+        visualization, turned into four voices. Press <kbd>Space</kbd> to play.
+      </p>
+      <p><a href="./index.html" data-i18n="header.spiral">← The spiral that sounds (Spanish only)</a></p>
+    </header>
+
+    <main id="main">
+      <section aria-labelledby="jb-title" class="jb-player">
+        <h2 id="jb-title" data-i18n="player.loading">Loading…</h2>
+
+        <figure class="jb-figure">
+          <video id="jb-video" muted playsinline preload="auto" aria-describedby="jb-caption"></video>
+          <figcaption id="jb-caption" data-i18n="player.caption">
+            Surface currents colored by sea temperature (blue, cold; red, warm). Visualization: NASA/GSFC
+            Scientific Visualization Studio.
+          </figcaption>
+        </figure>
+
+        <div id="jb-notice" class="jb-notice" role="alert">
+          <p id="jb-notice-text"></p>
+          <button id="jb-retry" type="button" hidden>Retry</button>
+        </div>
+
+        <div class="jb-transport">
+          <button id="jb-play" type="button" class="primary" disabled>Play</button>
+          <button id="jb-back" type="button" disabled aria-label="Back 5 seconds" data-i18n-attr="aria-label:transport.back">−5 s</button>
+          <button id="jb-fwd" type="button" disabled aria-label="Forward 5 seconds" data-i18n-attr="aria-label:transport.forward">+5 s</button>
+          <output id="jb-time" class="jb-time">0:00.0 / 0:00.0</output>
+        </div>
+        <label for="jb-seek" class="visually-hidden" data-i18n="transport.position">Position</label>
+        <input id="jb-seek" type="range" min="0" max="1" step="0.01" value="0" disabled />
+
+        <p class="jb-readout">
+          <span id="jb-date"></span>
+          <span id="jb-bar"></span>
+          <span id="jb-chord"></span>
+        </p>
+
+        <figure class="jb-roll" hidden>
+          <canvas
+            id="jb-roll"
+            role="slider"
+            tabindex="0"
+            aria-label="Piano roll: chords and notes of the four tracks"
+            aria-describedby="jb-roll-caption"
+            data-i18n-attr="aria-label:roll.label"
+          ></canvas>
+          <figcaption id="jb-roll-caption" data-i18n="roll.caption">
+            10-second piano roll: chords on top and one row per track (high notes at the top). The orange
+            line is what is sounding now. Click the chart to jump to that moment, or focus it and use the
+            arrow keys (one beat), Page Up / Page Down (one bar) and Home / End.
+          </figcaption>
+          <p id="jb-now" class="jb-note"></p>
+        </figure>
+
+        <fieldset class="jb-mixer">
+          <legend data-i18n="mixer.legend">Tracks</legend>
+          <ul id="jb-stems" class="jb-stems"></ul>
+          <button id="jb-reset" type="button" disabled data-i18n="mixer.reset">Unmute all</button>
+        </fieldset>
+
+        <p id="jb-status" role="status" aria-live="polite"></p>
+
+        <details class="jb-debug">
+          <summary data-i18n="debug.summary">Audio–video sync (diagnostics)</summary>
+          <pre id="jb-debug-values"></pre>
+        </details>
+      </section>
+
+      <section aria-labelledby="jb-regions-title" class="jb-regions" hidden>
+        <h2 id="jb-regions-title" data-i18n="regions.title">What the image measures, by region</h2>
+        <p class="jb-warning" data-i18n-html="regions.warning"></p>
+        <p class="jb-note" data-i18n="regions.keys">
+          Click a chart to jump to that moment, or focus it and use the arrow keys (1 s), Page Up / Page
+          Down (10 s) and Home / End.
+        </p>
+        <fieldset id="jb-region-picker" class="jb-region-picker"></fieldset>
+        <div id="jb-charts" class="jb-charts"></div>
+      </section>
+
+      <section aria-labelledby="jb-map-title" class="jb-map" hidden>
+        <h2 id="jb-map-title" data-i18n="map.title">What controls each instrument</h2>
+        <p data-i18n="map.intro"></p>
+        <ul id="jb-mapping" class="jb-mapping"></ul>
+      </section>
+
+      <section aria-labelledby="jb-keys-title">
+        <h2 id="jb-keys-title" data-i18n="keys.title">Keyboard shortcuts</h2>
+        <dl class="shortcuts">
+          <dt><kbd data-i18n="keys.space">Space</kbd></dt>
+          <dd data-i18n="keys.playPause">Play or pause</dd>
+          <dt><kbd>←</kbd> / <kbd>→</kbd></dt>
+          <dd data-i18n="keys.step">Back or forward 5 s</dd>
+          <dt><kbd data-i18n="keys.home">Home</kbd> / <kbd data-i18n="keys.end">End</kbd></dt>
+          <dd data-i18n="keys.startEnd">Go to the start or the end</dd>
+          <dt><kbd>1</kbd> … <kbd>4</kbd></dt>
+          <dd data-i18n="keys.mute">Mute or unmute a track</dd>
+          <dt><kbd data-i18n="keys.shift">Shift</kbd> + <kbd>1</kbd> … <kbd>4</kbd></dt>
+          <dd data-i18n="keys.solo">Solo a track</dd>
+          <dt><kbd>0</kbd></dt>
+          <dd data-i18n="keys.reset">Unmute all tracks</dd>
+        </dl>
+        <p class="jb-note" data-i18n="keys.note">
+          When a button has focus, Space and Enter press it. On the position bar, the piano roll and the
+          charts, the arrow keys, Home and End move within that control. Text fields and drop-downs have no
+          shortcuts.
+        </p>
+      </section>
+
+      <section aria-labelledby="jb-what-title">
+        <h2 id="jb-what-title" data-i18n="what.title">What you are hearing</h2>
+        <p data-i18n-html="what.body">
+          Each voice follows an index computed from the video's pixels (color, apparent motion, eddies).
+          They are <strong>visual indices</strong>, not calibrated scientific measurements. What does come
+          from NASA is the model date of each frame.
+        </p>
+        <p id="jb-disclaimer" class="jb-note"></p>
+      </section>
+    </main>
+
+    <footer id="jb-credits"></footer>
+    <script type="module" src="./src/jukebox/main.js"></script>
+  </body>
+</html>

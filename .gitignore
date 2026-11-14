@@ -12,6 +12,7 @@ web/dist/
 # La versión web del vídeo (web/public/media, ~6.6 MB) sí se sube para publicar la página.
 data/frames/
 data/media/
+video_jukebox/out/
 
 # Editor / sistema
 .vscode/
