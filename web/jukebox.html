@@ -46,7 +46,21 @@
         <p class="jb-readout">
           <span id="jb-date"></span>
           <span id="jb-bar"></span>
+          <span id="jb-chord"></span>
         </p>
+
+        <figure class="jb-roll" hidden>
+          <canvas
+            id="jb-roll"
+            role="img"
+            aria-label="Piano roll: acordes y notas de las cuatro pistas en los 10 segundos alrededor del cabezal"
+          ></canvas>
+          <figcaption>
+            Piano roll de 10 s: acordes arriba y una fila por pista (agudo arriba). La línea naranja es lo
+            que suena ahora; pulsa en el gráfico para saltar a ese momento.
+          </figcaption>
+          <p id="jb-now" class="jb-note"></p>
+        </figure>
 
         <fieldset class="jb-mixer">
           <legend>Pistas</legend>

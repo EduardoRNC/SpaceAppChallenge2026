@@ -9,6 +9,8 @@ import { videoTarget } from "./clock.js";
 import { gains, initialStates, reset, toggle } from "./mix.js";
 import { barBeat, formatDate, formatTime, frameAt, modelDate } from "./format.js";
 import { assetUrl, checkManifest } from "./manifest.js";
+import { checkTimeline, chordAt, noteName, soundingAt } from "./timeline.js";
+import { createPianoRoll } from "./pianoroll.js";
 
 const MANIFEST = "data/jukebox/ecco2.json";
 const STEP_S = 5;
@@ -26,6 +28,9 @@ const el = {
   time: $("jb-time"),
   date: $("jb-date"),
   bar: $("jb-bar"),
+  chord: $("jb-chord"),
+  roll: $("jb-roll"),
+  now: $("jb-now"),
   stems: $("jb-stems"),
   reset: $("jb-reset"),
   status: $("jb-status"),
@@ -34,7 +39,7 @@ const el = {
   debug: $("jb-debug-values"),
 };
 
-let manifest, transport, follower, player, states, scrubbing = null, decodeInfo = "";
+let manifest, timeline, transport, follower, player, roll, states, scrubbing = null, decodeInfo = "", nowText = "";
 const say = (text) => (el.status.textContent = text);
 
 async function fetchBytes(url) {
@@ -131,6 +136,18 @@ function renderCredits() {
   el.disclaimer.textContent = manifest.disclaimer;
 }
 
+function updateMusic(t) {
+  const chord = chordAt(timeline.chords, Math.min(t, timeline.timing.music_duration_s - 1e-6));
+  el.chord.textContent = chord ? `Acorde ${chord.name}` : "";
+  const mix = gains(states);
+  roll.draw(t, mix);
+  const parts = Object.entries(soundingAt(roll.lanes, t))
+    .filter(([id, notes]) => notes.length && mix[id] > 0)
+    .map(([id, notes]) => `${stemLabel(id)}: ${notes.map(noteName).join(" ")}`);
+  const text = parts.length ? `Suena: ${parts.join(" · ")}` : "Ninguna nota sonando.";
+  if (text !== nowText) el.now.textContent = nowText = text;
+}
+
 function updateReadout() {
   const t = scrubbing ? Number(el.seek.value) : transport.position();
   const { fps, frames } = manifest.video;
@@ -141,6 +158,7 @@ function updateReadout() {
   if (manifest.model_time) el.date.textContent = `Fecha del modelo: ${formatDate(modelDate(frame, manifest.model_time))} · fotograma ${frame + 1}/${frames}`;
   const { bar, beat } = barBeat(Math.min(t, manifest.timeline.music_duration_s - 1e-6), manifest.timeline.bpm);
   el.bar.textContent = `Compás ${bar} · tiempo ${beat}`;
+  updateMusic(t);
 
   const levels = transport.levels();
   for (const [id, rms] of Object.entries(levels)) {
@@ -229,6 +247,11 @@ async function init() {
       el.video.addEventListener("error", () => reject(new Error("no se pudo cargar el vídeo")), { once: true });
     });
 
+    const timelineReady = fetch(assetUrl(manifest.timeline.src, base)).then((res) => {
+      if (!res.ok) throw new Error(`${res.status} al cargar el timeline`);
+      return res.json();
+    });
+
     const ctx = new AudioContext({ sampleRate: manifest.audio.sample_rate, latencyHint: "interactive" });
     let loaded = 0;
     say("Cargando pistas de audio…");
@@ -243,6 +266,9 @@ async function init() {
     if (short.length) throw new Error(`pistas más cortas de lo esperado: ${short.map((s) => s.id).join(", ")}`);
     const lengths = [...new Set(stems.map((s) => s.buffer.length))];
     decodeInfo = `${lengths.join(" / ")} muestras (esperadas ${manifest.audio.samples}) a ${ctx.sampleRate} Hz`;
+    timeline = await timelineReady;
+    const timelineProblems = checkTimeline(timeline, manifest);
+    if (timelineProblems.length) throw new Error(`timeline no válido: ${timelineProblems.join("; ")}`);
     await videoReady;
 
     transport = createTransport(ctx, stems, manifest.audio.duration_s);
@@ -258,7 +284,14 @@ async function init() {
       onChange: onPlayerChange,
     });
     states = initialStates(manifest.audio.stems.map((s) => s.id));
-    Object.assign(window.jukeboxDebug, { manifest, transport, follower, player, ctx, stems, getStates: () => states });
+    el.roll.closest("figure").hidden = false;
+    roll = createPianoRoll({
+      canvas: el.roll,
+      timeline,
+      stems: manifest.audio.stems,
+      onSeek: (t) => player.jump(t),
+    });
+    Object.assign(window.jukeboxDebug, { manifest, timeline, transport, follower, player, roll, ctx, stems, getStates: () => states });
 
     buildStemRows();
     applyMix();
