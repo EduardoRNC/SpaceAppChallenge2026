@@ -13,6 +13,26 @@ body {
   white-space: nowrap;
 }
 
+.jb-lang {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+}
+
+.jb-lang button {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.95rem;
+}
+
+.jb-lang button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+}
+
 .jb-figure {
   margin: 1rem 0;
 }

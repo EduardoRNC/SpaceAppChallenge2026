@@ -2,9 +2,11 @@
 //
 // Una gráfica por medida, con su unidad, su advertencia y quién la usa en la música.
 // Todas son índices visuales calculados de los píxeles: se rotulan como tales.
+// Los textos salen de i18n; relabel() los cambia de idioma sin rehacer los controles.
 
 import { frameIndex, seriesPath, seriesRange } from "./timeline.js";
-import { formatValue, HARMONY, latitudeText, METRIC_ORDER, REGION_LABELS, regionsText, TRACK_MAPPINGS, usesOf } from "./mappings.js";
+import { effectKey, formatValue, HARMONY, latitudeText, METRIC_ORDER, regionsText, TRACK_MAPPINGS, usesOf } from "./mappings.js";
+import { dx7Patch, metricText, stemLabel } from "./texts.js";
 
 const W = 600;
 const H = 80;
@@ -17,8 +19,9 @@ const svgEl = (tag, attrs = {}) => {
 };
 
 /** Lista "qué controla cada instrumento": una entrada por pista más los acordes. */
-export function renderMappingList(list, stems, metrics) {
-  const entry = (title, detail, color, uses) => {
+export function renderMappingList(list, stems, metrics, i18n) {
+  const { t } = i18n;
+  const entry = (owner, title, detail, color, uses) => {
     const li = document.createElement("li");
     li.style.setProperty("--stem-color", color);
     const head = document.createElement("p");
@@ -29,38 +32,47 @@ export function renderMappingList(list, stems, metrics) {
     for (const u of uses) {
       const item = document.createElement("li");
       item.innerHTML = "<em></em> <span></span>";
-      item.querySelector("em").textContent = `${metrics[u.metric]?.label ?? u.metric} (${regionsText(u)}):`;
-      item.querySelector("span").textContent = `${u.effect}.`;
+      const metric = metrics[u.metric] ? metricText(i18n, u.metric, metrics[u.metric], "label") : u.metric;
+      item.querySelector("em").textContent = t("map.use", { metric, regions: regionsText(u, t) });
+      item.querySelector("span").textContent = t("map.effect", { effect: t(effectKey(owner, u.metric)) });
       ul.append(item);
     }
     li.append(head, ul);
     return li;
   };
   list.replaceChildren(
-    entry(HARMONY.label, "el director armónico", "var(--accent)", HARMONY.uses),
-    ...stems.map((s) => entry(s.label, `Referencia DX7: ${s.instrument.split(" - ").pop()}`, s.color, TRACK_MAPPINGS[s.id] ?? [])),
+    entry(HARMONY.id, t("map.harmony"), t("map.harmonyDetail"), "var(--accent)", HARMONY.uses),
+    ...stems.map((s) =>
+      entry(s.id, stemLabel(i18n, s), t("mixer.dx7", { patch: dx7Patch(s) }), s.color, TRACK_MAPPINGS[s.id] ?? []),
+    ),
   );
 }
 
-export function createRegionCharts({ picker, container, timeline, stems, onSeek = () => {}, initial = "tropicos" }) {
+export function createRegionCharts({ picker, container, timeline, stems, i18n, onSeek = () => {}, initial = "tropicos" }) {
+  const { t } = i18n;
   const { metrics, t: times } = timeline.features;
   const domain = [0, timeline.timing.video_duration_s];
   const stemById = Object.fromEntries(stems.map((s) => [s.id, s]));
   const ids = METRIC_ORDER.filter((m) => metrics[m]);
   let region = timeline.regions.some((r) => r.id === initial) ? initial : timeline.regions[0].id;
   let lastIndex = -1;
+  let lastT = 0;
   const charts = [];
+  const regionNames = [];
 
+  const legend = document.createElement("legend");
+  picker.append(legend);
   for (const r of timeline.regions) {
     const label = document.createElement("label");
     const input = document.createElement("input");
     Object.assign(input, { type: "radio", name: "jb-region", value: r.id, checked: r.id === region });
     input.addEventListener("change", () => input.checked && select(r.id));
-    label.append(input, ` ${REGION_LABELS[r.id] ?? r.id} `);
+    const name = document.createElement("span");
     const small = document.createElement("small");
     small.textContent = latitudeText(r);
-    label.append(small);
+    label.append(input, name, small);
     picker.append(label);
+    regionNames.push([r.id, name]);
   }
 
   for (const id of ids) {
@@ -70,14 +82,11 @@ export function createRegionCharts({ picker, container, timeline, stems, onSeek 
     fig.innerHTML = `
       <figcaption>
         <span class="jb-chart-title"><strong></strong> <span class="jb-unit"></span></span>
-        <span class="jb-proxy">Proxy visual · sin calibrar</span>
+        <span class="jb-proxy"></span>
       </figcaption>
       <p class="jb-chart-now"></p>
       <p class="jb-chart-uses"></p>
       <p class="jb-chart-caveat"></p>`;
-    fig.querySelector("strong").textContent = m.label;
-    fig.querySelector(".jb-unit").textContent = `(${m.unit})`;
-    fig.querySelector(".jb-chart-caveat").textContent = `${m.derived_from}. ${m.caveat}`;
     const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", role: "img" });
     const zero = svgEl("line", { x1: 0, x2: W, class: "jb-zero" });
     const line = svgEl("path", { class: "jb-series", "vector-effect": "non-scaling-stroke" });
@@ -95,16 +104,33 @@ export function createRegionCharts({ picker, container, timeline, stems, onSeek 
     charts.push({ id, m, fig, svg, zero, line, head, range, now: fig.querySelector(".jb-chart-now"), uses: fig.querySelector(".jb-chart-uses") });
   }
 
+  const label = (c) => metricText(i18n, c.id, c.m, "label");
+  const unit = (c) => metricText(i18n, c.id, c.m, "unit");
+  const who = (id) => (id === HARMONY.id ? t("regions.chords") : stemById[id] ? stemLabel(i18n, stemById[id]) : id);
+
   function usesText(id) {
     const uses = usesOf(id, region);
-    if (!uses.length) return "No controla ningún instrumento: se muestra como contexto.";
-    return uses.map((u) => `${u.id === HARMONY.id ? "Acordes" : stemById[u.id]?.label ?? u.id}: ${u.effect}.`).join(" ");
+    if (!uses.length) return t("regions.unused");
+    return uses.map((u) => t("regions.use", { who: who(u.id), effect: t(effectKey(u.id, u.metric)) })).join(" ");
+  }
+
+  /** Textos que no dependen de la región. */
+  function staticTexts() {
+    legend.textContent = t("regions.picker");
+    for (const [id, name] of regionNames) name.textContent = ` ${t(`regions.names.${id}`)} `;
+    for (const c of charts) {
+      c.fig.querySelector("strong").textContent = label(c);
+      c.fig.querySelector(".jb-unit").textContent = `(${unit(c)})`;
+      c.fig.querySelector(".jb-proxy").textContent = t("regions.proxy");
+      c.fig.querySelector(".jb-chart-caveat").textContent =
+        `${metricText(i18n, c.id, c.m, "derived_from")}. ${metricText(i18n, c.id, c.m, "caveat")}`;
+    }
   }
 
   function select(next) {
     region = next;
     lastIndex = -1;
-    const name = REGION_LABELS[region] ?? region;
+    const name = t(`regions.names.${region}`);
     for (const c of charts) {
       const values = c.m.by_region[region];
       const r = seriesRange(values);
@@ -116,10 +142,14 @@ export function createRegionCharts({ picker, container, timeline, stems, onSeek 
         c.zero.setAttribute("y1", y);
         c.zero.setAttribute("y2", y);
       }
-      c.range.textContent = r ? `mín. ${formatValue(r.min)} · máx. ${formatValue(r.max)} ${c.m.unit}` : "sin datos";
+      const min = r && formatValue(r.min, i18n);
+      const max = r && formatValue(r.max, i18n);
+      c.range.textContent = r ? t("regions.range", { min, max, unit: unit(c) }) : t("regions.noData");
       c.svg.setAttribute(
         "aria-label",
-        `${c.m.label} en ${name} a lo largo del vídeo${r ? `: entre ${formatValue(r.min)} y ${formatValue(r.max)} (${c.m.unit})` : ""}. Índice visual, no medición calibrada.`,
+        r
+          ? t("regions.chartLabel", { metric: label(c), region: name, min, max, unit: unit(c) })
+          : t("regions.chartLabelEmpty", { metric: label(c), region: name }),
       );
       const used = usesOf(c.id, region);
       c.fig.classList.toggle("jb-unused", !used.length);
@@ -128,13 +158,30 @@ export function createRegionCharts({ picker, container, timeline, stems, onSeek 
         const chip = document.createElement("span");
         chip.className = "jb-chip";
         chip.style.setProperty("--stem-color", stemById[u.id]?.color ?? "var(--accent)");
-        chip.textContent = u.id === HARMONY.id ? "Acordes" : stemById[u.id]?.label ?? u.id;
+        chip.textContent = who(u.id);
         c.uses.append(chip);
       }
       c.uses.append(document.createTextNode(` ${usesText(c.id)}`));
     }
+    update(lastT);
   }
 
+  /** Mueve el cabezal al tiempo t del audio (se queda en el último fotograma tras el vídeo). */
+  function update(t) {
+    lastT = t;
+    const tv = Math.min(Math.max(t, domain[0]), domain[1]);
+    const x = ((tv - domain[0]) / (domain[1] - domain[0])) * W;
+    for (const c of charts) {
+      c.head.setAttribute("x1", x);
+      c.head.setAttribute("x2", x);
+    }
+    const i = frameIndex(t, timeline.timing);
+    if (i === lastIndex) return;
+    lastIndex = i;
+    for (const c of charts) c.now.textContent = i18n.t("regions.now", { value: formatValue(c.m.by_region[region][i], i18n), unit: unit(c) });
+  }
+
+  staticTexts();
   select(region);
 
   return {
@@ -142,18 +189,11 @@ export function createRegionCharts({ picker, container, timeline, stems, onSeek 
       return region;
     },
     select,
-    /** Mueve el cabezal al tiempo t del audio (se queda en el último fotograma tras el vídeo). */
-    update(t) {
-      const tv = Math.min(Math.max(t, domain[0]), domain[1]);
-      const x = ((tv - domain[0]) / (domain[1] - domain[0])) * W;
-      for (const c of charts) {
-        c.head.setAttribute("x1", x);
-        c.head.setAttribute("x2", x);
-      }
-      const i = frameIndex(t, timeline.timing);
-      if (i === lastIndex) return;
-      lastIndex = i;
-      for (const c of charts) c.now.textContent = `Ahora: ${formatValue(c.m.by_region[region][i])} ${c.m.unit}`;
+    update,
+    /** Vuelve a escribir todos los textos en el idioma activo. */
+    relabel() {
+      staticTexts();
+      select(region);
     },
   };
 }

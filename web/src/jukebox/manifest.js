@@ -15,18 +15,21 @@ export function isRelative(src) {
   );
 }
 
-/** Lista de problemas del manifiesto (vacía si es válido). */
+/**
+ * Problemas del manifiesto (vacía si es válido): [{ code, ...variables }]. El texto de cada
+ * código está en i18n (problems.manifest.<code>).
+ */
 export function checkManifest(m) {
   const errors = [];
-  if (m?.schema !== SCHEMA) return [`esquema desconocido: ${m?.schema}`];
-  if (m.version !== 1) errors.push(`versión no soportada: ${m.version}`);
+  if (m?.schema !== SCHEMA) return [{ code: "schema", value: String(m?.schema) }];
+  if (m.version !== 1) errors.push({ code: "version", value: String(m.version) });
   const ids = (m.audio?.stems ?? []).map((s) => s.id);
-  if (ids.join() !== STEM_IDS.join()) errors.push(`pistas inesperadas: ${ids.join(", ")}`);
+  if (ids.join() !== STEM_IDS.join()) errors.push({ code: "stems", ids: ids.join(", ") });
   const srcs = [m.video?.src, m.timeline?.src, ...(m.audio?.stems ?? []).map((s) => s.src)];
-  for (const src of srcs) if (!isRelative(src)) errors.push(`ruta no relativa: ${src}`);
-  if (!(m.video?.fps > 0) || !(m.video?.frames > 0)) errors.push("vídeo sin fps o frames");
-  if (!(m.audio?.samples > 0) || !(m.audio?.sample_rate > 0)) errors.push("audio sin longitud");
-  if (!m.credits?.some((c) => c.url?.includes("svs.gsfc.nasa.gov"))) errors.push("faltan los créditos del NASA SVS");
+  for (const src of srcs) if (!isRelative(src)) errors.push({ code: "path", src: String(src) });
+  if (!(m.video?.fps > 0) || !(m.video?.frames > 0)) errors.push({ code: "video" });
+  if (!(m.audio?.samples > 0) || !(m.audio?.sample_rate > 0)) errors.push({ code: "audio" });
+  if (!m.credits?.some((c) => c.url?.includes("svs.gsfc.nasa.gov"))) errors.push({ code: "credits" });
   return errors;
 }
 

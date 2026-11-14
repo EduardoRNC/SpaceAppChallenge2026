@@ -1,5 +1,5 @@
 // Demo del video jukebox: el vídeo ECCO2 del NASA SVS con sus cuatro pistas FM.
-// Esta primera etapa cubre reproducción sincronizada, transporte y mute/solo.
+// Reproducción sincronizada, mute/solo, piano roll, gráficas por región; en inglés o español.
 
 import { createTransport } from "./transport.js";
 import { createFollower } from "./follower.js";
@@ -7,11 +7,13 @@ import { createPlayer } from "./player.js";
 import { shortcutFor } from "./keys.js";
 import { videoTarget } from "./clock.js";
 import { gains, initialStates, reset, toggle } from "./mix.js";
-import { barBeat, formatDate, formatTime, frameAt, modelDate } from "./format.js";
+import { barBeat, DATE_OPTIONS, formatTime, frameAt, modelDate } from "./format.js";
 import { assetUrl, checkManifest } from "./manifest.js";
 import { checkTimeline, chordAt, noteName, soundingAt } from "./timeline.js";
 import { createPianoRoll } from "./pianoroll.js";
 import { createRegionCharts, renderMappingList } from "./regions.js";
+import { dx7Patch, problemsText, stemLabel } from "./texts.js";
+import { createI18n, initialLang, safeStorage, translateDom } from "../i18n/index.js";
 
 const MANIFEST = "data/jukebox/ecco2.json";
 // Altavoz: con ondas mientras suena, tachado cuando la pista está silenciada (lo elige el CSS).
@@ -22,6 +24,14 @@ const SPEAKER_ICON = `<svg class="jb-icon" viewBox="0 0 24 24" aria-hidden="true
 </svg>`;
 const STEP_S = 5;
 const SEEK_TIMEOUT_MS = 2000;
+
+const storage = safeStorage();
+const i18n = createI18n({
+  lang: initialLang({ search: location.search, storage }),
+  storage,
+  onMissing: (key, lang) => console.warn(`i18n: falta "${key}" (${lang})`),
+});
+const { t } = i18n;
 
 const $ = (id) => document.getElementById(id);
 const el = {
@@ -49,12 +59,30 @@ const el = {
   debug: $("jb-debug-values"),
 };
 
-let manifest, timeline, transport, follower, player, roll, regions, states, scrubbing = null, decodeInfo = "", nowText = "";
-const say = (text) => (el.status.textContent = text);
+let manifest, timeline, transport, follower, player, roll, regions, states, scrubbing = null, decoded = null, nowText = "";
+
+// El estado se guarda como función para poder reescribirlo al cambiar de idioma.
+let status = () => "";
+const say = (text) => {
+  status = text;
+  el.status.textContent = text();
+};
+
+/** Error con su texto en el idioma activo (se vuelve a traducir si cambia el idioma). */
+class UiError extends Error {
+  constructor(describe) {
+    super(describe());
+    this.describe = describe;
+  }
+}
+
+const decimal = () => i18n.number(1.5).charAt(1);
+const time = (s) => formatTime(s, decimal());
+const ms = (x) => (x == null ? "—" : t("debug.ms", { value: i18n.number(x * 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }));
 
 async function fetchBytes(url) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`${res.status} al cargar ${url}`);
+  if (!res.ok) throw new UiError(() => t("errors.fetch", { url, status: res.status }));
   return res.arrayBuffer();
 }
 
@@ -77,25 +105,35 @@ function showFrameAt(t) {
   el.video.currentTime = videoTarget(t, videoDuration(), manifest.video.fps);
 }
 
+const endStatus = () => t("status.end");
+
 function onPlayerChange(event) {
   updatePlayButton();
-  if (event === "end") say("Fin. Pulsa Reproducir para empezar de nuevo.");
-  else if (event === "start" && el.status.textContent.startsWith("Fin")) say("");
+  if (event === "end") say(endStatus);
+  else if (event === "start" && status === endStatus) say(() => "");
 }
 
 function updatePlayButton() {
-  const playing = player.playing;
-  el.play.textContent = playing ? "Pausa" : "Reproducir";
+  const playing = player?.playing ?? false;
+  el.play.textContent = t(playing ? "transport.pause" : "transport.play");
   el.play.setAttribute("aria-pressed", String(playing));
 }
 
+const stemById = (id) => manifest.audio.stems.find((s) => s.id === id);
+const label = (id) => stemLabel(i18n, stemById(id));
+
 function applyMix() {
   transport.setGains(gains(states));
+  updateMixButtons();
+}
+
+function updateMixButtons() {
   for (const s of states) {
     const row = el.stems.querySelector(`[data-stem="${s.id}"]`);
     const mute = row.querySelector(".jb-mute");
+    const n = states.indexOf(s) + 1;
     mute.setAttribute("aria-pressed", String(s.mute));
-    mute.title = `${s.mute ? "Activar sonido" : "Silenciar"} (tecla ${states.indexOf(s) + 1})`;
+    mute.title = t(s.mute ? "mixer.unmuteTitle" : "mixer.muteTitle", { n });
     row.querySelector(".jb-solo").setAttribute("aria-pressed", String(s.solo));
     row.classList.toggle("jb-silent", gains(states)[s.id] === 0);
   }
@@ -107,71 +145,98 @@ function setMix(next, message) {
   if (message) say(message);
 }
 
-function stemLabel(id) {
-  return manifest.audio.stems.find((s) => s.id === id).label;
-}
-
 function toggleStem(id, key) {
   const next = toggle(states, id, key);
   const on = next.find((s) => s.id === id)[key];
-  const what = key === "mute" ? (on ? "silenciada" : "con sonido") : on ? "en solo" : "sin solo";
-  setMix(next, `${stemLabel(id)}: ${what}.`);
+  const what = key === "mute" ? (on ? "mixer.muted" : "mixer.unmuted") : on ? "mixer.soloOn" : "mixer.soloOff";
+  setMix(next, () => t(what, { name: label(id) }));
 }
+
+const allOn = () => setMix(reset(states), () => t("mixer.allOn"));
 
 function buildStemRows() {
   el.stems.replaceChildren(
-    ...manifest.audio.stems.map((s, i) => {
+    ...manifest.audio.stems.map((s) => {
       const li = document.createElement("li");
       li.dataset.stem = s.id;
       li.style.setProperty("--stem-color", s.color);
       li.innerHTML = `
         <span class="jb-swatch" aria-hidden="true"></span>
-        <span class="jb-name"><strong>${s.label}</strong><small>Referencia DX7: ${s.instrument.split(" - ").pop()}</small></span>
+        <span class="jb-name"><strong></strong><small></small></span>
         <span class="jb-meter" aria-hidden="true"><span></span></span>
-        <button type="button" class="jb-mute" aria-pressed="false"
-          aria-label="Silenciar ${s.label}" title="Silenciar (tecla ${i + 1})">${SPEAKER_ICON}</button>
-        <button type="button" class="jb-solo" aria-pressed="false"
-          aria-label="Solo ${s.label}" title="Solo (Mayús + ${i + 1})">S</button>`;
+        <button type="button" class="jb-mute" aria-pressed="false">${SPEAKER_ICON}</button>
+        <button type="button" class="jb-solo" aria-pressed="false"></button>`;
       li.querySelector(".jb-mute").addEventListener("click", () => toggleStem(s.id, "mute"));
       li.querySelector(".jb-solo").addEventListener("click", () => toggleStem(s.id, "solo"));
       return li;
     }),
   );
+  relabelStems();
+}
+
+/** Textos de las filas del mezclador (sin rehacerlas: el foco se queda donde estaba). */
+function relabelStems() {
+  manifest.audio.stems.forEach((s, i) => {
+    const row = el.stems.querySelector(`[data-stem="${s.id}"]`);
+    const name = stemLabel(i18n, s);
+    row.querySelector(".jb-name strong").textContent = name;
+    row.querySelector(".jb-name small").textContent = t("mixer.dx7", { patch: dx7Patch(s) });
+    row.querySelector(".jb-mute").setAttribute("aria-label", t("mixer.mute", { name }));
+    const solo = row.querySelector(".jb-solo");
+    solo.setAttribute("aria-label", t("mixer.solo", { name }));
+    solo.title = t("mixer.soloTitle", { n: i + 1 });
+    solo.textContent = t("mixer.soloShort");
+  });
 }
 
 function renderCredits() {
-  const items = manifest.credits.map((c) => {
-    const name = c.url ? `<a href="${c.url}">${c.text}</a>` : c.text;
-    return `<li><strong>${c.role}:</strong> ${name}${c.detail ? ` — ${c.detail}` : ""}</li>`;
+  const ul = document.createElement("ul");
+  manifest.credits.forEach((c, i) => {
+    const key = `data.credits.${i}`;
+    const li = document.createElement("li");
+    const role = document.createElement("strong");
+    role.textContent = `${i18n.data(`${key}.role`, c.role)}:`;
+    const name = document.createElement(c.url ? "a" : "span");
+    if (c.url) name.href = c.url;
+    name.textContent = i18n.data(`${key}.text`, c.text);
+    li.append(role, " ", name);
+    if (c.detail) li.append(` — ${i18n.data(`${key}.detail`, c.detail)}`);
+    ul.append(li);
   });
-  el.credits.innerHTML = `<ul>${items.join("")}</ul><p>${manifest.notice}</p>`;
-  el.disclaimer.textContent = manifest.disclaimer;
+  const notice = document.createElement("p");
+  notice.textContent = i18n.data("data.notice", manifest.notice);
+  el.credits.replaceChildren(ul, notice);
+  el.disclaimer.textContent = i18n.data("data.disclaimer", manifest.disclaimer);
 }
 
-function updateMusic(t) {
-  const chord = chordAt(timeline.chords, Math.min(t, timeline.timing.music_duration_s - 1e-6));
-  el.chord.textContent = chord ? `Acorde ${chord.name}` : "";
+function updateMusic(pos) {
+  const chord = chordAt(timeline.chords, Math.min(pos, timeline.timing.music_duration_s - 1e-6));
+  el.chord.textContent = chord ? t("readout.chord", { name: chord.name }) : "";
   const mix = gains(states);
-  roll.draw(t, mix);
-  regions.update(t);
-  const parts = Object.entries(soundingAt(roll.lanes, t))
+  roll.draw(pos, mix);
+  regions.update(pos);
+  const parts = Object.entries(soundingAt(roll.lanes, pos))
     .filter(([id, notes]) => notes.length && mix[id] > 0)
-    .map(([id, notes]) => `${stemLabel(id)}: ${notes.map(noteName).join(" ")}`);
-  const text = parts.length ? `Suena: ${parts.join(" · ")}` : "Ninguna nota sonando.";
+    .map(([id, notes]) => `${label(id)}: ${notes.map(noteName).join(" ")}`);
+  const text = parts.length ? t("roll.sounding", { parts: parts.join(" · ") }) : t("roll.silent");
   if (text !== nowText) el.now.textContent = nowText = text;
 }
 
 function updateReadout() {
-  const t = scrubbing ? Number(el.seek.value) : transport.position();
+  const pos = scrubbing ? Number(el.seek.value) : transport.position();
   const { fps, frames } = manifest.video;
-  const frame = frameAt(Math.min(t, manifest.video.duration_s), fps, frames);
-  el.time.textContent = `${formatTime(t)} / ${formatTime(manifest.audio.duration_s)}`;
-  if (!scrubbing) el.seek.value = t.toFixed(2);
-  el.seek.setAttribute("aria-valuetext", `${formatTime(t)} de ${formatTime(manifest.audio.duration_s)}`);
-  if (manifest.model_time) el.date.textContent = `Fecha del modelo: ${formatDate(modelDate(frame, manifest.model_time))} · fotograma ${frame + 1}/${frames}`;
-  const { bar, beat } = barBeat(Math.min(t, manifest.timeline.music_duration_s - 1e-6), manifest.timeline.bpm);
-  el.bar.textContent = `Compás ${bar} · tiempo ${beat}`;
-  updateMusic(t);
+  const frame = frameAt(Math.min(pos, manifest.video.duration_s), fps, frames);
+  const total = time(manifest.audio.duration_s);
+  el.time.textContent = `${time(pos)} / ${total}`;
+  if (!scrubbing) el.seek.value = pos.toFixed(2);
+  el.seek.setAttribute("aria-valuetext", t("transport.positionText", { time: time(pos), total }));
+  if (manifest.model_time) {
+    const date = i18n.date(modelDate(frame, manifest.model_time), DATE_OPTIONS);
+    el.date.textContent = t("readout.date", { date, frame: frame + 1, frames });
+  }
+  const { bar, beat } = barBeat(Math.min(pos, manifest.timeline.music_duration_s - 1e-6), manifest.timeline.bpm);
+  el.bar.textContent = t("readout.bar", { bar, beat });
+  updateMusic(pos);
 
   const levels = transport.levels();
   for (const [id, rms] of Object.entries(levels)) {
@@ -181,14 +246,13 @@ function updateReadout() {
   }
 
   const st = follower.stats;
-  const ms = (x) => (x == null ? "—" : `${(x * 1000).toFixed(1)} ms`);
   el.debug.textContent = [
-    `Desvío medio vídeo − audio (0,5 s): ${ms(st.meanDrift)}`,
-    `Último fotograma: ${ms(st.frameDrift)} · máximo |desvío| en 10 s: ${ms(st.maxAbs)}`,
-    `(a 30 fps cada fotograma se ve 33 ms: los valores por fotograma oscilan ±1/2 fotograma)`,
-    `Saltos de corrección: ${st.seeks} · velocidad del vídeo: ${st.rate.toFixed(3)}`,
-    `Latencia de salida: ${ms(transport.latency())}`,
-    `Pistas decodificadas: ${decodeInfo}`,
+    t("debug.mean", { value: ms(st.meanDrift) }),
+    t("debug.frame", { value: ms(st.frameDrift), max: ms(st.maxAbs) }),
+    t("debug.note"),
+    t("debug.seeks", { seeks: st.seeks, rate: i18n.number(st.rate, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }),
+    t("debug.latency", { value: ms(transport.latency()) }),
+    t("debug.decoded", { value: decoded ? t("debug.decodedValue", decoded) : "—" }),
   ].join("\n");
   window.jukeboxDebug.lastLevels = levels;
   requestAnimationFrame(updateReadout);
@@ -209,7 +273,7 @@ function runShortcut(action) {
     case "solo":
       return toggleStem(ids[action.index], action.type);
     case "reset":
-      return setMix(reset(states), "Todas las pistas con sonido.");
+      return allOn();
   }
 }
 
@@ -217,7 +281,7 @@ function bindTransport() {
   el.play.addEventListener("click", () => player.togglePlay());
   el.back.addEventListener("click", () => player.jump(player.position() - STEP_S));
   el.fwd.addEventListener("click", () => player.jump(player.position() + STEP_S));
-  el.reset.addEventListener("click", () => setMix(reset(states), "Todas las pistas con sonido."));
+  el.reset.addEventListener("click", allOn);
 
   el.seek.addEventListener("input", () => {
     if (scrubbing === null) {
@@ -229,9 +293,9 @@ function bindTransport() {
   el.seek.addEventListener("change", () => {
     const resume = scrubbing?.resume;
     scrubbing = null;
-    const t = Number(el.seek.value);
-    if (resume) player.startAt(t);
-    else player.jump(t);
+    const pos = Number(el.seek.value);
+    if (resume) player.startAt(pos);
+    else player.jump(pos);
   });
 
   transport.onEnded(() => player.handleEnded());
@@ -244,44 +308,78 @@ function bindTransport() {
   });
 }
 
+/**
+ * Pone toda la página en el idioma activo. Solo cambia textos: no toca el audio, el vídeo
+ * ni el reproductor, así que puede hacerse en plena reproducción.
+ */
+function applyLanguage() {
+  document.documentElement.lang = i18n.lang;
+  document.title = t("page.title");
+  document.querySelector('meta[name="description"]')?.setAttribute("content", t("page.description"));
+  translateDom(document, t);
+  for (const b of document.querySelectorAll("[data-lang]")) b.setAttribute("aria-pressed", String(b.dataset.lang === i18n.lang));
+  updatePlayButton();
+  el.status.textContent = status();
+  if (!manifest) return;
+  el.title.textContent = i18n.data("data.title", manifest.title);
+  renderCredits();
+  if (!states) return;
+  relabelStems();
+  updateMixButtons();
+  regions.relabel();
+  renderMappingList(el.mapping, manifest.audio.stems, timeline.features.metrics, i18n);
+  nowText = "";
+}
+
+function bindLanguage() {
+  for (const b of document.querySelectorAll("[data-lang]")) b.addEventListener("click", () => i18n.setLang(b.dataset.lang));
+  i18n.onChange(applyLanguage);
+  applyLanguage();
+}
+
 async function init() {
-  window.jukeboxDebug = {};
+  window.jukeboxDebug = { i18n };
+  bindLanguage();
   try {
     const base = document.baseURI;
     manifest = await (await fetch(assetUrl(MANIFEST, base))).json();
     const problems = checkManifest(manifest);
-    if (problems.length) throw new Error(`manifiesto no válido: ${problems.join("; ")}`);
-    el.title.textContent = manifest.title;
-    renderCredits();
+    if (problems.length) throw new UiError(() => t("errors.manifest", { problems: problemsText(i18n, "manifest", problems) }));
+    delete el.title.dataset.i18n;
+    applyLanguage();
 
     el.video.src = assetUrl(manifest.video.src, base);
     const videoReady = new Promise((resolve, reject) => {
       el.video.addEventListener("loadeddata", resolve, { once: true });
-      el.video.addEventListener("error", () => reject(new Error("no se pudo cargar el vídeo")), { once: true });
+      el.video.addEventListener("error", () => reject(new UiError(() => t("errors.video"))), { once: true });
     });
 
     const timelineReady = fetch(assetUrl(manifest.timeline.src, base)).then((res) => {
-      if (!res.ok) throw new Error(`${res.status} al cargar el timeline`);
+      if (!res.ok) throw new UiError(() => t("errors.fetch", { url: manifest.timeline.src, status: res.status }));
       return res.json();
     });
 
     const ctx = new AudioContext({ sampleRate: manifest.audio.sample_rate, latencyHint: "interactive" });
+    const total = manifest.audio.stems.length;
     let loaded = 0;
-    say("Cargando pistas de audio…");
+    say(() => t("status.loadingAudio"));
     const stems = await Promise.all(
       manifest.audio.stems.map(async (s) => {
         const buffer = await ctx.decodeAudioData(await fetchBytes(assetUrl(s.src, base)));
-        say(`Cargando pistas de audio… ${++loaded}/${manifest.audio.stems.length}`);
+        const done = ++loaded;
+        say(() => t("status.loadingProgress", { done, total }));
         return { id: s.id, buffer };
       }),
     );
     const short = stems.filter((s) => s.buffer.length < manifest.audio.samples);
-    if (short.length) throw new Error(`pistas más cortas de lo esperado: ${short.map((s) => s.id).join(", ")}`);
+    if (short.length) throw new UiError(() => t("errors.shortStems", { ids: short.map((s) => s.id).join(", ") }));
     const lengths = [...new Set(stems.map((s) => s.buffer.length))];
-    decodeInfo = `${lengths.join(" / ")} muestras (esperadas ${manifest.audio.samples}) a ${ctx.sampleRate} Hz`;
+    decoded = { lengths: lengths.join(" / "), expected: manifest.audio.samples, rate: ctx.sampleRate };
     timeline = await timelineReady;
     const timelineProblems = checkTimeline(timeline, manifest);
-    if (timelineProblems.length) throw new Error(`timeline no válido: ${timelineProblems.join("; ")}`);
+    if (timelineProblems.length) {
+      throw new UiError(() => t("errors.timeline", { problems: problemsText(i18n, "timeline", timelineProblems) }));
+    }
     await videoReady;
 
     transport = createTransport(ctx, stems, manifest.audio.duration_s);
@@ -296,36 +394,36 @@ async function init() {
       waitSeeked,
       onChange: onPlayerChange,
     });
-    states = initialStates(manifest.audio.stems.map((s) => s.id));
     el.roll.closest("figure").hidden = false;
     roll = createPianoRoll({
       canvas: el.roll,
       timeline,
       stems: manifest.audio.stems,
-      onSeek: (t) => player.jump(t),
+      labelOf: (s) => stemLabel(i18n, s),
+      onSeek: (pos) => player.jump(pos),
     });
     regions = createRegionCharts({
       picker: el.regionPicker,
       container: el.charts,
       timeline,
       stems: manifest.audio.stems,
-      onSeek: (t) => player.jump(t),
+      i18n,
+      onSeek: (pos) => player.jump(pos),
     });
-    renderMappingList(el.mapping, manifest.audio.stems, timeline.features.metrics);
     for (const s of document.querySelectorAll(".jb-regions, .jb-map")) s.hidden = false;
     Object.assign(window.jukeboxDebug, { manifest, timeline, transport, follower, player, roll, regions, ctx, stems, getStates: () => states });
 
     buildStemRows();
-    applyMix();
+    states = initialStates(manifest.audio.stems.map((s) => s.id));
+    applyLanguage();
     el.seek.max = String(manifest.audio.duration_s);
     for (const b of [el.play, el.back, el.fwd, el.seek, el.reset]) b.disabled = false;
     bindTransport();
-    updatePlayButton();
     requestAnimationFrame(updateReadout);
-    say("Listo. Pulsa Reproducir o la barra espaciadora.");
+    say(() => t("status.ready"));
   } catch (err) {
     console.error(err);
-    say(`Error: ${err.message}`);
+    say(() => t("status.error", { message: err.describe ? err.describe() : err.message }));
   }
 }
 

@@ -146,6 +146,6 @@ test("checkManifest detecta rutas absolutas y pistas que faltan", () => {
     credits: [{ url: "https://svs.gsfc.nasa.gov/3912/" }],
   };
   const errors = checkManifest(m);
-  assert.ok(errors.some((e) => e.includes("/abs.mp4")));
-  assert.ok(errors.some((e) => e.includes("pistas")));
+  assert.ok(errors.some((e) => e.code === "path" && e.src === "/abs.mp4"));
+  assert.ok(errors.some((e) => e.code === "stems" && e.ids === "temperatura"));
 });

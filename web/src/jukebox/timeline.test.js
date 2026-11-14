@@ -55,12 +55,12 @@ test("checkTimeline rechaza esquema, canales, fps y medidas que se dicen calibra
   if (!HAVE_ASSETS) return t.skip("sin activos generados");
   const manifest = readJson("data/jukebox/ecco2.json");
   const tl = readJson(manifest.timeline.src);
-  assert.match(checkTimeline({ ...tl, schema: "otro" }, manifest)[0], /esquema/);
-  assert.ok(checkTimeline({ ...tl, channels: tl.channels.slice(1) }, manifest).some((e) => e.includes("canales")));
-  assert.ok(checkTimeline({ ...tl, timing: { ...tl.timing, fps: 25 } }, manifest).some((e) => e.includes("fps")));
+  assert.deepEqual(checkTimeline({ ...tl, schema: "otro" }, manifest), [{ code: "schema", value: "otro" }]);
+  assert.ok(checkTimeline({ ...tl, channels: tl.channels.slice(1) }, manifest).some((e) => e.code === "channels"));
+  assert.ok(checkTimeline({ ...tl, timing: { ...tl.timing, fps: 25 } }, manifest).some((e) => e.code === "fps" && e.timeline === 25));
   const metrics = { ...tl.features.metrics, temp: { ...tl.features.metrics.temp, calibrated: true } };
   const calibrated = { ...tl, features: { ...tl.features, metrics } };
-  assert.ok(checkTimeline(calibrated, manifest).some((e) => e.includes("temp")));
+  assert.ok(checkTimeline(calibrated, manifest).some((e) => e.code === "metric" && e.id === "temp"));
 });
 
 test("carriles: uno por canal, notas ordenadas y registro con margen", () => {

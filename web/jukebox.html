@@ -1,46 +1,51 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Video jukebox: el océano que suena — Earth Information Jukebox</title>
+    <title>Video jukebox: the ocean that sounds — Earth Information Jukebox</title>
     <meta
       name="description"
-      content="Corrientes y temperatura del océano (NASA SVS, modelo ECCO2) convertidas en cuatro voces de música."
+      content="Ocean currents and temperature (NASA SVS, ECCO2 model) turned into four voices of music."
     />
     <link rel="stylesheet" href="./src/style.css" />
     <link rel="stylesheet" href="./src/jukebox/jukebox.css" />
   </head>
   <body>
-    <a class="skip-link" href="#main">Saltar al contenido</a>
-    <header>
-      <h1>El océano que suena</h1>
-      <p>
-        Las corrientes y la temperatura del océano de un año del modelo ECCO2, en la visualización del
-        NASA SVS, convertidas en cuatro voces. Pulsa <kbd>Espacio</kbd> para reproducir.
+    <a class="skip-link" href="#main" data-i18n="page.skip">Skip to content</a>
+    <header class="jb-header">
+      <div class="jb-lang" role="group" aria-label="Language" data-i18n-attr="aria-label:lang.label">
+        <button type="button" lang="en" data-lang="en" aria-pressed="true">English</button>
+        <span aria-hidden="true">/</span>
+        <button type="button" lang="es" data-lang="es" aria-pressed="false">Español</button>
+      </div>
+      <h1 data-i18n="header.title">The ocean that sounds</h1>
+      <p data-i18n-html="header.intro">
+        One year of ocean currents and temperature from the ECCO2 model, as shown in the NASA SVS
+        visualization, turned into four voices. Press <kbd>Space</kbd> to play.
       </p>
-      <p><a href="./index.html">← La espiral que suena</a></p>
+      <p><a href="./index.html" data-i18n="header.spiral">← The spiral that sounds (Spanish only)</a></p>
     </header>
 
     <main id="main">
       <section aria-labelledby="jb-title" class="jb-player">
-        <h2 id="jb-title">Cargando…</h2>
+        <h2 id="jb-title" data-i18n="player.loading">Loading…</h2>
 
         <figure class="jb-figure">
           <video id="jb-video" muted playsinline preload="auto" aria-describedby="jb-caption"></video>
-          <figcaption id="jb-caption">
-            Corrientes superficiales coloreadas por la temperatura del mar (azul, frío; rojo, cálido).
-            Visualización: NASA/GSFC Scientific Visualization Studio.
+          <figcaption id="jb-caption" data-i18n="player.caption">
+            Surface currents colored by sea temperature (blue, cold; red, warm). Visualization: NASA/GSFC
+            Scientific Visualization Studio.
           </figcaption>
         </figure>
 
         <div class="jb-transport">
-          <button id="jb-play" type="button" class="primary" aria-pressed="false" disabled>Reproducir</button>
-          <button id="jb-back" type="button" disabled aria-label="Retroceder 5 segundos">−5 s</button>
-          <button id="jb-fwd" type="button" disabled aria-label="Avanzar 5 segundos">+5 s</button>
+          <button id="jb-play" type="button" class="primary" aria-pressed="false" disabled>Play</button>
+          <button id="jb-back" type="button" disabled aria-label="Back 5 seconds" data-i18n-attr="aria-label:transport.back">−5 s</button>
+          <button id="jb-fwd" type="button" disabled aria-label="Forward 5 seconds" data-i18n-attr="aria-label:transport.forward">+5 s</button>
           <output id="jb-time" class="jb-time">0:00.0 / 0:00.0</output>
         </div>
-        <label for="jb-seek" class="visually-hidden">Posición</label>
+        <label for="jb-seek" class="visually-hidden" data-i18n="transport.position">Position</label>
         <input id="jb-seek" type="range" min="0" max="1" step="0.01" value="0" disabled />
 
         <p class="jb-readout">
@@ -53,81 +58,71 @@
           <canvas
             id="jb-roll"
             role="img"
-            aria-label="Piano roll: acordes y notas de las cuatro pistas en los 10 segundos alrededor del cabezal"
+            aria-label="Piano roll: chords and notes of the four tracks in the 10 seconds around the playhead"
+            data-i18n-attr="aria-label:roll.label"
           ></canvas>
-          <figcaption>
-            Piano roll de 10 s: acordes arriba y una fila por pista (agudo arriba). La línea naranja es lo
-            que suena ahora; pulsa en el gráfico para saltar a ese momento.
+          <figcaption data-i18n="roll.caption">
+            10-second piano roll: chords on top and one row per track (high notes at the top). The orange
+            line is what is sounding now; click the chart to jump to that moment.
           </figcaption>
           <p id="jb-now" class="jb-note"></p>
         </figure>
 
         <fieldset class="jb-mixer">
-          <legend>Pistas</legend>
+          <legend data-i18n="mixer.legend">Tracks</legend>
           <ul id="jb-stems" class="jb-stems"></ul>
-          <button id="jb-reset" type="button" disabled>Todas con sonido</button>
+          <button id="jb-reset" type="button" disabled data-i18n="mixer.reset">Unmute all</button>
         </fieldset>
 
         <p id="jb-status" role="status" aria-live="polite"></p>
 
         <details class="jb-debug">
-          <summary>Sincronía audio–vídeo (diagnóstico)</summary>
+          <summary data-i18n="debug.summary">Audio–video sync (diagnostics)</summary>
           <pre id="jb-debug-values"></pre>
         </details>
       </section>
 
       <section aria-labelledby="jb-regions-title" class="jb-regions" hidden>
-        <h2 id="jb-regions-title">Lo que mide la imagen, por región</h2>
-        <p class="jb-warning">
-          <strong>Todas estas medidas son proxies visuales sin calibrar.</strong> Se calculan a partir de los
-          píxeles del vídeo (color y flujo óptico): no son temperaturas en °C, ni velocidades en m/s, ni
-          vorticidad física. Se muestran por fotograma, sin el suavizado que usa la música. En este vídeo,
-          las variaciones rápidas de movimiento y turbulencia se deben sobre todo al ruido de compresión;
-          el índice de color sí sigue las estaciones.
-        </p>
-        <fieldset id="jb-region-picker" class="jb-region-picker">
-          <legend>Región (franja de latitud)</legend>
-        </fieldset>
+        <h2 id="jb-regions-title" data-i18n="regions.title">What the image measures, by region</h2>
+        <p class="jb-warning" data-i18n-html="regions.warning"></p>
+        <fieldset id="jb-region-picker" class="jb-region-picker"></fieldset>
         <div id="jb-charts" class="jb-charts"></div>
       </section>
 
       <section aria-labelledby="jb-map-title" class="jb-map" hidden>
-        <h2 id="jb-map-title">Qué controla cada instrumento</h2>
-        <p>
-          Cada pista sigue una o varias de las medidas de arriba. Antes de convertirlas en notas se suavizan
-          y se comparan con su propio rango: la música sigue cambios relativos, no valores absolutos.
-        </p>
+        <h2 id="jb-map-title" data-i18n="map.title">What controls each instrument</h2>
+        <p data-i18n="map.intro"></p>
         <ul id="jb-mapping" class="jb-mapping"></ul>
       </section>
 
       <section aria-labelledby="jb-keys-title">
-        <h2 id="jb-keys-title">Atajos de teclado</h2>
+        <h2 id="jb-keys-title" data-i18n="keys.title">Keyboard shortcuts</h2>
         <dl class="shortcuts">
-          <dt><kbd>Espacio</kbd></dt>
-          <dd>Reproducir o pausar</dd>
+          <dt><kbd data-i18n="keys.space">Space</kbd></dt>
+          <dd data-i18n="keys.playPause">Play or pause</dd>
           <dt><kbd>←</kbd> / <kbd>→</kbd></dt>
-          <dd>Retroceder o avanzar 5 s</dd>
-          <dt><kbd>Inicio</kbd> / <kbd>Fin</kbd></dt>
-          <dd>Ir al principio o al final</dd>
+          <dd data-i18n="keys.step">Back or forward 5 s</dd>
+          <dt><kbd data-i18n="keys.home">Home</kbd> / <kbd data-i18n="keys.end">End</kbd></dt>
+          <dd data-i18n="keys.startEnd">Go to the start or the end</dd>
           <dt><kbd>1</kbd> … <kbd>4</kbd></dt>
-          <dd>Silenciar o activar una pista</dd>
-          <dt><kbd>Mayús</kbd> + <kbd>1</kbd> … <kbd>4</kbd></dt>
-          <dd>Solo de una pista</dd>
+          <dd data-i18n="keys.mute">Mute or unmute a track</dd>
+          <dt><kbd data-i18n="keys.shift">Shift</kbd> + <kbd>1</kbd> … <kbd>4</kbd></dt>
+          <dd data-i18n="keys.solo">Solo a track</dd>
           <dt><kbd>0</kbd></dt>
-          <dd>Todas las pistas con sonido</dd>
+          <dd data-i18n="keys.reset">Unmute all tracks</dd>
         </dl>
-        <p class="jb-note">
-          Con el foco en un botón, Espacio y Enter lo pulsan; en la barra de posición, las flechas la
-          mueven. En campos de texto y desplegables no hay atajos.
+        <p class="jb-note" data-i18n="keys.note">
+          When a button has focus, Space and Enter press it; on the position bar, the arrow keys move it.
+          Text fields and drop-downs have no shortcuts.
         </p>
       </section>
 
       <section aria-labelledby="jb-what-title">
-        <h2 id="jb-what-title">Qué estás oyendo</h2>
-        <p>
-          Cada voz sigue un índice calculado a partir de los píxeles del vídeo (color, movimiento,
-          remolinos). Son <strong>índices visuales</strong>, no mediciones científicas calibradas. Lo que
-          sí procede de NASA es la fecha del modelo de cada fotograma.
+        <h2 id="jb-what-title" data-i18n="what.title">What you are hearing</h2>
+        <p data-i18n-html="what.body">
+          Each voice follows an index computed from the video's pixels (color, apparent motion, eddies).
+          They are <strong>visual indices</strong>, not calibrated scientific measurements. What does come
+          from NASA is the model date of each frame.
         </p>
         <p id="jb-disclaimer" class="jb-note"></p>
       </section>

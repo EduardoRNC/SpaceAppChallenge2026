@@ -11,7 +11,8 @@ const LEAD = 0.25;
 const CHORD_H = 24;
 const GAP = 3;
 
-export function createPianoRoll({ canvas, timeline, stems, onSeek = () => {} }) {
+/** `labelOf(stem)`: nombre de la pista en el idioma activo (se pide en cada dibujo). */
+export function createPianoRoll({ canvas, timeline, stems, labelOf = (s) => s.label, onSeek = () => {} }) {
   const ctx = canvas.getContext("2d");
   const lanes = buildLanes(timeline);
   const style = Object.fromEntries(stems.map((s) => [s.id, s]));
@@ -97,7 +98,7 @@ export function createPianoRoll({ canvas, timeline, stems, onSeek = () => {} }) 
     ctx.globalAlpha = 1;
     ctx.font = "600 11px system-ui, sans-serif";
     ctx.textBaseline = "top";
-    const label = style[l.id]?.label ?? l.id;
+    const label = style[l.id] ? labelOf(style[l.id]) : l.id;
     const w = ctx.measureText(label).width + 10;
     ctx.fillStyle = "rgb(11 16 32 / 0.75)";
     ctx.fillRect(4, top + 3, w, 16);

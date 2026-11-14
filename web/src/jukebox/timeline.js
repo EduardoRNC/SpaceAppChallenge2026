@@ -8,23 +8,26 @@ import { STEM_IDS } from "./manifest.js";
 export const TIMELINE_SCHEMA = "earth-jukebox-timeline";
 const NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
 
-/** Lista de problemas del timeline frente al manifiesto (vacía si es válido). */
+/**
+ * Problemas del timeline frente al manifiesto (vacía si es válido): [{ code, ...variables }],
+ * con el texto en i18n (problems.timeline.<code>).
+ */
 export function checkTimeline(t, manifest) {
-  if (t?.schema !== TIMELINE_SCHEMA) return [`esquema de timeline desconocido: ${t?.schema}`];
+  if (t?.schema !== TIMELINE_SCHEMA) return [{ code: "schema", value: String(t?.schema) }];
   const errors = [];
-  if (t.version !== 1) errors.push(`versión de timeline no soportada: ${t.version}`);
+  if (t.version !== 1) errors.push({ code: "version", value: String(t.version) });
   const ids = (t.channels ?? []).map((c) => c.id);
-  if (ids.join() !== STEM_IDS.join()) errors.push(`canales inesperados: ${ids.join(", ")}`);
-  if (!Array.isArray(t.notes) || !t.notes.length) errors.push("timeline sin notas");
-  else if (t.notes.some((n) => !ids.includes(n.track))) errors.push("notas de una pista desconocida");
+  if (ids.join() !== STEM_IDS.join()) errors.push({ code: "channels", ids: ids.join(", ") });
+  if (!Array.isArray(t.notes) || !t.notes.length) errors.push({ code: "notes" });
+  else if (t.notes.some((n) => !ids.includes(n.track))) errors.push({ code: "noteTrack" });
   const timing = t.timing ?? {};
-  if (manifest && timing.fps !== manifest.video.fps) errors.push(`fps del timeline ${timing.fps} ≠ vídeo ${manifest.video.fps}`);
-  if (manifest && !(timing.music_duration_s <= manifest.audio.duration_s)) errors.push("la música dura más que el audio");
-  if (t.features?.t?.length !== timing.frames) errors.push("features.t no tiene un valor por fotograma");
+  if (manifest && timing.fps !== manifest.video.fps) errors.push({ code: "fps", timeline: timing.fps, video: manifest.video.fps });
+  if (manifest && !(timing.music_duration_s <= manifest.audio.duration_s)) errors.push({ code: "duration" });
+  if (t.features?.t?.length !== timing.frames) errors.push({ code: "features" });
   for (const [id, m] of Object.entries(t.features?.metrics ?? {})) {
     // La interfaz presenta todas las medidas como índices visuales: si alguna dijera
     // estar calibrada, habría que revisar los textos antes de mostrarla.
-    if (m.nature !== "visual_proxy" || m.calibrated !== false) errors.push(`medida ${id} no marcada como proxy visual sin calibrar`);
+    if (m.nature !== "visual_proxy" || m.calibrated !== false) errors.push({ code: "metric", id });
   }
   return errors;
 }

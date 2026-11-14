@@ -1,10 +1,11 @@
 // Textos de la posición: tiempo, fotograma, fecha del modelo y compás.
 
-export function formatTime(s) {
+/** "1:07.7" (o "1:07,7" con `decimal` = ","). */
+export function formatTime(s, decimal = ".") {
   const t = Math.max(0, s);
   const m = Math.floor(t / 60);
   const sec = (t - m * 60).toFixed(1).padStart(4, "0");
-  return `${m}:${sec}`;
+  return `${m}:${sec.replace(".", decimal)}`;
 }
 
 /** Fotograma del vídeo que se ve en el tiempo t (0 = primero). */
@@ -20,8 +21,10 @@ export function modelDate(frame, modelTime) {
   return new Date(Date.parse(modelTime.first) + frame * modelTime.step_hours * 3600e3);
 }
 
-export function formatDate(date) {
-  return date.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+export const DATE_OPTIONS = { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" };
+
+export function formatDate(date, locale = "en-US") {
+  return date.toLocaleDateString(locale, DATE_OPTIONS);
 }
 
 /** Compás y tiempo (desde 1) en el instante t. */
