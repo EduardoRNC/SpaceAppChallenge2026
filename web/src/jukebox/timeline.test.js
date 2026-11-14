@@ -7,6 +7,7 @@ import {
   buildLanes,
   checkTimeline,
   chordAt,
+  chordLabels,
   chordsInWindow,
   frameIndex,
   isActive,
@@ -99,6 +100,36 @@ test("acorde vigente: cambia exactamente al empezar el compás", () => {
   assert.equal(chordAt(CHORDS, 100).name, "Gm7");
   const visible = chordsInWindow(CHORDS, 2, 6, 8);
   assert.deepEqual(visible.map((c) => [c.name, c.end]), [["Dm9", 2.666667], ["Bbmaj7", 5.333333], ["Gm7", 8]]);
+});
+
+test("rótulos de acordes: nunca un nombre cortado; el que suena siempre visible", () => {
+  const measure = (s) => s.length * 7;
+  const bars = Array.from({ length: 10 }, (_, i) => ({ bar: i, t: i * 2.666667, name: ["Dm9", "Bbmaj7", "Gm7", "Cadd9"][i % 4] }));
+  const width = 400;
+  const end = 26.66667;
+  for (let t = 0; t <= end; t += 0.05) {
+    const view = rollView(t, 10, 0.25);
+    const labels = chordLabels(bars, view, t, width, end, measure);
+    const current = labels.filter((c) => c.state === "current");
+    assert.equal(current.length, 1, `t=${t}`);
+    assert.notEqual(current[0].labelX, null, `el acorde que suena tiene nombre en t=${t}`);
+    for (const c of labels) {
+      if (c.labelX == null) continue;
+      assert.ok(c.labelX >= 0, `t=${t} ${c.name} empieza dentro del lienzo`);
+      assert.ok(c.labelX + measure(c.name) <= Math.min(c.x1, width), `t=${t} ${c.name} cabe en su caja`);
+      if (c.state !== "current") assert.ok(c.x0 >= 0, `t=${t} ${c.name}: solo el actual se fija al borde`);
+    }
+  }
+});
+
+test("rótulos de acordes: el que ya pasó y salió por la izquierda pierde el nombre", () => {
+  const measure = (s) => s.length * 7;
+  const view = rollView(3, 10, 0.25); // t0 = 0.5: el primer acorde (0–2,67 s) ya pasó y está a medias
+  const [first, second] = chordLabels(CHORDS, view, 3, 400, 8, measure);
+  assert.equal(first.state, "past");
+  assert.equal(first.labelX, null);
+  assert.equal(second.state, "current");
+  assert.ok(second.labelX > 0);
 });
 
 test("ventana del piano roll: el cabezal al 25 % y x ↔ tiempo inversos", () => {

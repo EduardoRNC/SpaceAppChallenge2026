@@ -79,6 +79,25 @@ export function chordsInWindow(chords, t0, t1, end) {
     .filter((c) => c.t < t1 && c.end > t0);
 }
 
+/**
+ * Rótulos de la franja de acordes. El acorde que suena se rotula siempre, al principio de la
+ * parte visible de su caja; los demás, en su comienzo y solo si el nombre cabe entero (nunca un
+ * nombre cortado entrando o saliendo). `measure(texto)` da el ancho en píxeles.
+ * Devuelve [{ name, x0, x1, labelX | null, state: "past" | "current" | "future" }].
+ */
+export function chordLabels(chords, view, t, width, end, measure, pad = 6) {
+  const current = chordAt(chords, t);
+  return chordsInWindow(chords, view.t0, view.t1, end).map((c) => {
+    const x0 = xAt(c.t, view, width);
+    const x1 = xAt(c.end, view, width);
+    const state = current && c.t === current.t ? "current" : c.end <= t ? "past" : "future";
+    const left = state === "current" ? Math.max(x0, 0) : x0;
+    const room = Math.min(x1, width) - pad;
+    const labelX = left >= 0 && left + pad + measure(c.name) <= room ? left + pad : null;
+    return { name: c.name, x0, x1, labelX, state };
+  });
+}
+
 /** Ventana visible: `span` segundos con el cabezal a `lead` (fracción) del borde izquierdo. */
 export function rollView(t, span = 10, lead = 0.25) {
   const t0 = t - span * lead;

@@ -4,7 +4,7 @@
 // (agudo arriba, cada carril con su propio registro). El cabezal es la posición del audio
 // que se oye. Las pistas sin sonido (mute/solo) se atenúan; las notas que suenan se resaltan.
 
-import { buildLanes, chordAt, chordsInWindow, isActive, noteBox, notesInWindow, rollView, timeAtX, xAt } from "./timeline.js";
+import { buildLanes, chordLabels, isActive, noteBox, notesInWindow, rollView, timeAtX, xAt } from "./timeline.js";
 
 const SPAN_S = 10;
 const LEAD = 0.25;
@@ -59,23 +59,20 @@ export function createPianoRoll({ canvas, timeline, stems, onSeek = () => {} }) 
     }
   }
 
+  const CHORD_FILL = { past: "rgb(255 255 255 / 0.03)", current: "rgb(255 179 71 / 0.28)", future: "rgb(255 255 255 / 0.07)" };
+
   function chords(t) {
-    const now = chordAt(timeline.chords, t);
     ctx.font = "600 12px system-ui, sans-serif";
     ctx.textBaseline = "middle";
-    for (const c of chordsInWindow(timeline.chords, view.t0, view.t1, end)) {
-      const x0 = x(c.t);
-      const x1 = x(c.end);
-      const current = c === now || (now && c.t === now.t);
-      ctx.fillStyle = current ? "rgb(255 179 71 / 0.28)" : "rgb(255 255 255 / 0.07)";
-      ctx.fillRect(x0 + 1, 2, x1 - x0 - 2, CHORD_H - 4);
-      ctx.fillStyle = current ? fg : muted;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x0, 0, x1 - x0, CHORD_H);
-      ctx.clip();
-      ctx.fillText(c.name, Math.max(x0, 0) + 6, CHORD_H / 2);
-      ctx.restore();
+    const measure = (s) => ctx.measureText(s).width;
+    for (const c of chordLabels(timeline.chords, view, t, width, end, measure)) {
+      ctx.fillStyle = CHORD_FILL[c.state];
+      ctx.fillRect(c.x0 + 1, 2, c.x1 - c.x0 - 2, CHORD_H - 4);
+      if (c.labelX == null) continue;
+      ctx.fillStyle = c.state === "current" ? fg : muted;
+      ctx.globalAlpha = c.state === "past" ? 0.45 : 1;
+      ctx.fillText(c.name, c.labelX, CHORD_H / 2);
+      ctx.globalAlpha = 1;
     }
   }
 
