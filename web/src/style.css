@@ -41,6 +41,81 @@ a {
   padding: 0.5rem 1rem;
 }
 
+.spiral {
+  margin: 1rem 0;
+}
+
+.spiral video {
+  display: block;
+  width: 100%;
+  max-width: 34rem;
+  aspect-ratio: 1;
+  background: #000;
+  border-radius: 0.5rem;
+}
+
+.spiral figcaption {
+  max-width: 34rem;
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.spiral figcaption span {
+  display: block;
+}
+
+#spiral-credit {
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+.readout {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  margin-block: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+#year {
+  font-size: 4rem;
+  font-weight: 700;
+}
+
+#value {
+  font-size: 1.75rem;
+  color: var(--accent);
+}
+
+button {
+  font: inherit;
+  font-size: 1.25rem;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  border: 2px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+fieldset {
+  border: 1px solid var(--muted);
+  border-radius: 0.5rem;
+  margin-block: 1rem;
+}
+
+fieldset label {
+  display: block;
+  padding-block: 0.25rem;
+}
+
 footer {
   margin-top: 3rem;
   color: var(--muted);

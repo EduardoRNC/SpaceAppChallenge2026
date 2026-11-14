@@ -75,7 +75,16 @@ def build_temperature_track(df: pd.DataFrame, retrieved: str) -> dict:
         "series": series,
         "annual": annual,
         "records": record_years(annual),
-        "video": None,  # se completa en el Paso 5 (sincronía con la Climate Spiral)
+        # Calibración de la Climate Spiral (SVS 5190), medida sobre los frames.
+        # Ver scripts/prepare_video.py y docs/PROCESS.md.
+        "video": {
+            "src": "media/climate_spiral_es.mp4",
+            "tStart": 0.0,  # segundo del vídeo en el que empieza 1880-01
+            "secondsPerYear": 0.1597,  # 144 años en 23.0 s (1880 → 2024)
+            "tDataEnd": 23.45,  # fin de 2026-10; después, pausa y giro al cono 3D
+            "duration": 30.0,
+            "credit": "NASA Scientific Visualization Studio — Climate Spiral 1880–Present (SVS 5190)",
+        },
         "description": (
             "Anomalía mensual de la temperatura global de la superficie, de tierra y océano, "
             f"desde {first} hasta {last}, respecto a la media de 1951–1980. "

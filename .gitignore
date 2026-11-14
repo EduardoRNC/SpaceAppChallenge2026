@@ -8,9 +8,10 @@ __pycache__/
 web/node_modules/
 web/dist/
 
-# Medios pesados y frames extraídos (se regeneran con los scripts)
+# Medios pesados y frames extraídos (se regeneran con scripts/prepare_video.py).
+# La versión web del vídeo (web/public/media, ~6.6 MB) sí se sube para publicar la página.
 data/frames/
-web/public/media/*.mp4
+data/media/
 
 # Editor / sistema
 .vscode/
