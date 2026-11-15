@@ -11,6 +11,17 @@
       },
       "analyzer": "ocean_flow",
       "duration_s": 67.67
+    },
+    {
+      "id": "viento",
+      "manifest": "data/jukebox/viento.json",
+      "title": {
+        "en": "Near-surface wind (GMAO)",
+        "es": "Viento cerca de la superficie (GMAO)"
+      },
+      "analyzer": "ocean_flow",
+      "duration_s": 31.67,
+      "test": false
     }
   ]
 }
