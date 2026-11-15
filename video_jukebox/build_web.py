@@ -24,6 +24,9 @@ import json
 import subprocess
 import sys
 import tempfile
+import json
+import os
+import subprocess
 from datetime import datetime, timezone
 from fractions import Fraction
 from pathlib import Path
@@ -113,7 +116,7 @@ def encode_video(src, dst, kbps, size=(1280, 640)):
                   "-maxrate", f"{2 * kbps}k", "-bufsize", f"{4 * kbps}k",
                   "-profile:v", "high", "-pix_fmt", "yuv420p", "-g", "30",
                   "-passlogfile", log]
-        run(common + ["-pass", "1", "-f", "mp4", "/dev/null"])
+        run(common + ["-pass", "1", "-f", "mp4", os.devnull])
         run(common + ["-pass", "2", "-movflags", "+faststart", dst])
 
 
