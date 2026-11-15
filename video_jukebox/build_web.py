@@ -21,6 +21,7 @@ import argparse
 import hashlib
 import itertools
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -99,7 +100,7 @@ def encode_video(src, dst, kbps, width=1280):
                   "-maxrate", f"{2 * kbps}k", "-bufsize", f"{4 * kbps}k",
                   "-profile:v", "high", "-pix_fmt", "yuv420p", "-g", "30",
                   "-passlogfile", log]
-        run(common + ["-pass", "1", "-f", "mp4", "/dev/null"])
+        run(common + ["-pass", "1", "-f", "mp4", os.devnull])
         run(common + ["-pass", "2", "-movflags", "+faststart", dst])
 
 
