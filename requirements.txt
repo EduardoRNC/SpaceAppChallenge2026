@@ -1,3 +1,4 @@
-pandas==2.2.3
+# Python 3.10+ y ffmpeg en el sistema. Todo el pipeline vive en video_jukebox/.
+-r video_jukebox/requirements.txt
 pytest==8.3.5
 matplotlib==3.9.2

@@ -1,0 +1,117 @@
+{
+  "id": "viento",
+  "analyzer": "ocean_flow",
+  "svs": null,
+  "source": {
+    "video": "data\\media\\viento\\MC02_stage3_GMAO_near_surface_wind_2048x1024_en.mp4",
+    "downloads": [],
+    "date_range": [
+      "2026-10-30T09:00Z",
+      "2026-11-14T20:00Z"
+    ]
+  },
+  "music": {
+    "harmony": {
+      "metric": "temp",
+      "mode": "contrast",
+      "regions": [
+        "norte_medio",
+        "sur_medio"
+      ]
+    },
+    "tracks": [
+      {
+        "id": "temperatura",
+        "name": "Temperatura",
+        "role": "pad",
+        "patch": "STRINGS 1",
+        "program": 3,
+        "color": "#ff6b4a",
+        "metric": "temp"
+      },
+      {
+        "id": "corrientes",
+        "name": "Corrientes",
+        "role": "voices",
+        "patch": "FLUTE 1",
+        "program": 23,
+        "color": "#4cc9f0",
+        "activity": "speed",
+        "pitch": "temp",
+        "timbre": "vort"
+      },
+      {
+        "id": "remolinos",
+        "name": "Remolinos",
+        "role": "accents",
+        "patch": "TUB BELLS",
+        "program": 25,
+        "color": "#c77dff",
+        "metric": "vort"
+      },
+      {
+        "id": "ecuatorial",
+        "name": "Corriente ecuatorial",
+        "role": "bass",
+        "patch": "BASS 1",
+        "program": 14,
+        "color": "#f4b942",
+        "metric": "u",
+        "region": "tropicos",
+        "direction": -1
+      }
+    ]
+  },
+  "texts": {
+    "en": {
+      "title": "Near-surface wind (GMAO)",
+      "intro": "",
+      "caption": "",
+      "proxy_note": "",
+      "stems": {
+        "temperatura": {
+          "label": "Temperatura"
+        },
+        "corrientes": {
+          "label": "Corrientes"
+        },
+        "remolinos": {
+          "label": "Remolinos"
+        },
+        "ecuatorial": {
+          "label": "Ecuatorial"
+        }
+      }
+    },
+    "es": {
+      "title": "Viento cerca de la superficie (GMAO)",
+      "intro": "",
+      "caption": "",
+      "proxy_note": "",
+      "stems": {
+        "temperatura": {
+          "label": "Temperatura"
+        },
+        "corrientes": {
+          "label": "Corrientes"
+        },
+        "remolinos": {
+          "label": "Remolinos"
+        },
+        "ecuatorial": {
+          "label": "Ecuatorial"
+        }
+      }
+    }
+  },
+  "credits": [
+    {
+      "role": {
+        "en": "Source",
+        "es": "Fuente"
+      },
+      "text": "NASA Global Modeling and Assimilation Office (GMAO)",
+      "url": "https://gmao.gsfc.nasa.gov/"
+    }
+  ]
+}

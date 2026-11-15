@@ -1,0 +1,27 @@
+{
+  "schema": "earth-jukebox-catalog",
+  "version": 1,
+  "videos": [
+    {
+      "id": "ecco2",
+      "manifest": "data/jukebox/ecco2.json",
+      "title": {
+        "en": "Ocean currents and temperature (ECCO2)",
+        "es": "Corrientes y temperatura del océano (ECCO2)"
+      },
+      "analyzer": "ocean_flow",
+      "duration_s": 67.67
+    },
+    {
+      "id": "viento",
+      "manifest": "data/jukebox/viento.json",
+      "title": {
+        "en": "Near-surface wind (GMAO)",
+        "es": "Viento cerca de la superficie (GMAO)"
+      },
+      "analyzer": "ocean_flow",
+      "duration_s": 31.67,
+      "test": false
+    }
+  ]
+}

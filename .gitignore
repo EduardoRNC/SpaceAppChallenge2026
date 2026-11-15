@@ -8,10 +8,10 @@ __pycache__/
 web/node_modules/
 web/dist/
 
-# Medios pesados y frames extraídos (se regeneran con scripts/prepare_video.py).
-# La versión web del vídeo (web/public/media, ~6.6 MB) sí se sube para publicar la página.
-data/frames/
+# Videos originales de NASA (se bajan con `jukebox.py fetch`) y salidas de trabajo.
+# Lo publicado en web/public (video web, pistas, timeline, manifiesto, catálogo) sí se sube.
 data/media/
+video_jukebox/out/
 
 # Editor / sistema
 .vscode/

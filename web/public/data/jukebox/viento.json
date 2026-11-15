@@ -1,0 +1,306 @@
+{
+  "schema": "earth-jukebox-web",
+  "version": 2,
+  "id": "viento",
+  "analyzer": "ocean_flow",
+  "svs": null,
+  "test": false,
+  "title": "Viento cerca de la superficie (GMAO)",
+  "generated_by": "video_jukebox/jukebox.py build",
+  "paths_relative_to": "la página (web/index.html); válido con base './' en GitHub Pages",
+  "video": {
+    "src": "media/jukebox/viento.mp4",
+    "fps": 12.0,
+    "frames": 372,
+    "duration_s": 31.0,
+    "width": 1280,
+    "height": 640
+  },
+  "audio": {
+    "sample_rate": 44100,
+    "samples": 1396500,
+    "duration_s": 31.666666666666668,
+    "gain": 2.6683266300716286,
+    "headroom_db": 1.0,
+    "codec": "AAC 128 kb/s",
+    "stems": [
+      {
+        "id": "temperatura",
+        "channel": 0,
+        "role": "pad",
+        "label": "Temperatura",
+        "color": "#ff6b4a",
+        "instrument": "Temperatura - STRINGS 1",
+        "src": "media/jukebox/viento_temperatura.m4a",
+        "first_note_s": 0.0
+      },
+      {
+        "id": "corrientes",
+        "channel": 1,
+        "role": "voices",
+        "label": "Corrientes",
+        "color": "#4cc9f0",
+        "instrument": "Corrientes - FLUTE 1",
+        "src": "media/jukebox/viento_corrientes.m4a",
+        "first_note_s": 0.0
+      },
+      {
+        "id": "remolinos",
+        "channel": 2,
+        "role": "accents",
+        "label": "Remolinos",
+        "color": "#c77dff",
+        "instrument": "Remolinos - TUB BELLS",
+        "src": "media/jukebox/viento_remolinos.m4a",
+        "first_note_s": 1.6666666666666665
+      },
+      {
+        "id": "ecuatorial",
+        "channel": 3,
+        "role": "bass",
+        "label": "Ecuatorial",
+        "color": "#f4b942",
+        "instrument": "Ecuatorial - BASS 1",
+        "src": "media/jukebox/viento_ecuatorial.m4a",
+        "first_note_s": 0.0
+      }
+    ]
+  },
+  "timeline": {
+    "src": "data/jukebox/viento_timeline.json",
+    "bpm": 90.0,
+    "music_duration_s": 30.666667
+  },
+  "model_time": {
+    "first": "2026-10-30T09:00Z",
+    "last": "2026-11-14T20:00Z",
+    "frames": 372,
+    "step_hours": 1.0,
+    "max_deviation_s": 0.0,
+    "source": "date_range"
+  },
+  "credits": [
+    {
+      "role": "Fuente",
+      "text": "NASA Global Modeling and Assimilation Office (GMAO)",
+      "detail": null,
+      "url": "https://gmao.gsfc.nasa.gov/"
+    },
+    {
+      "role": "Música",
+      "text": "Generada por este proyecto a partir de índices visuales del video",
+      "detail": "Preview FM de 2 operadores (no es Dexed ni un DX7 real)",
+      "url": null
+    }
+  ],
+  "notice": "Proyecto para NASA Space Apps Challenge 2026. No está respaldado por NASA. Visualización de dominio público del NASA SVS.",
+  "disclaimer": "Las características son proxies visuales derivados de los píxeles del video. No son mediciones físicas calibradas.",
+  "texts": {
+    "en": {
+      "title": "Near-surface wind (GMAO)",
+      "intro": "",
+      "caption": "",
+      "proxy_note": "",
+      "notice": "Project for the NASA Space Apps Challenge 2026. Not endorsed by NASA. Public-domain visualization from the NASA SVS.",
+      "disclaimer": "The features are visual proxies derived from the video's pixels. They are not calibrated physical measurements.",
+      "stems": {
+        "temperatura": {
+          "label": "Temperatura"
+        },
+        "corrientes": {
+          "label": "Corrientes"
+        },
+        "remolinos": {
+          "label": "Remolinos"
+        },
+        "ecuatorial": {
+          "label": "Ecuatorial"
+        }
+      },
+      "metrics": {
+        "temp": {
+          "label": "Cold–warm color index",
+          "unit": "index 0..1",
+          "derived_from": "pixel hue (HSV): blue = 0, red = 1",
+          "caveat": "Position in the visualization's color palette, not temperature in °C."
+        },
+        "speed": {
+          "label": "Apparent motion",
+          "unit": "px/frame",
+          "derived_from": "mean optical-flow magnitude (Farneback)",
+          "caveat": "Depends on the analysis resolution (--width) and on the pace of the animation; not a speed in m/s."
+        },
+        "u": {
+          "label": "Apparent east–west motion",
+          "unit": "px/frame",
+          "derived_from": "horizontal optical-flow component (+ = east)",
+          "caveat": "In the equirectangular projection a horizontal pixel covers fewer km the closer it is to the pole."
+        },
+        "v": {
+          "label": "Apparent north–south motion",
+          "unit": "px/frame",
+          "derived_from": "vertical optical-flow component (+ = north)",
+          "caveat": "Motion of the drawn lines, not physical meridional velocity."
+        },
+        "vort": {
+          "label": "Apparent turbulence",
+          "unit": "1/frame",
+          "derived_from": "absolute value of the optical-flow curl",
+          "caveat": "An indicator of eddies in the image, not physical vorticity in 1/s."
+        },
+        "cover": {
+          "label": "Valid-pixel coverage",
+          "unit": "fraction 0..1",
+          "derived_from": "pixels that pass the saturation and brightness mask",
+          "caveat": "Fraction of colored pixels, not the actual fraction of ocean."
+        }
+      },
+      "effects": {
+        "acordes": {
+          "temp": "the difference Northern mid-latitudes − Southern mid-latitudes picks darker or brighter chords, bar by bar; with the brightest ones, the strings move up an octave"
+        },
+        "temperatura": {
+          "temp": "the mean of the five bands sets the volume of the chord"
+        },
+        "corrientes": {
+          "speed": "each band has its own voice: it sounds when this measure exceeds 45% of its range, and louder the higher it is",
+          "temp": "raises or lowers the band's note (±5 semitones; north = high, south = low)",
+          "vort": "the mean of the five bands changes the timbre (modulation)"
+        },
+        "remolinos": {
+          "vort": "a bell strike at each peak of the band (more than 1.6 standard deviations above its median); higher-pitched the further north"
+        },
+        "ecuatorial": {
+          "u": "the lower (more negative) the value, the more notes per bar and the louder they are"
+        }
+      },
+      "credits": {
+        "0": {
+          "role": "Source",
+          "text": "NASA Global Modeling and Assimilation Office (GMAO)"
+        },
+        "1": {
+          "role": "Music",
+          "text": "Generated by this project from visual indices of the video",
+          "detail": "2-operator FM preview (not Dexed, not a real DX7)"
+        }
+      }
+    },
+    "es": {
+      "title": "Viento cerca de la superficie (GMAO)",
+      "intro": "",
+      "caption": "",
+      "proxy_note": "",
+      "notice": "Proyecto para NASA Space Apps Challenge 2026. No está respaldado por NASA. Visualización de dominio público del NASA SVS.",
+      "disclaimer": "Las características son proxies visuales derivados de los píxeles del video. No son mediciones físicas calibradas.",
+      "stems": {
+        "temperatura": {
+          "label": "Temperatura"
+        },
+        "corrientes": {
+          "label": "Corrientes"
+        },
+        "remolinos": {
+          "label": "Remolinos"
+        },
+        "ecuatorial": {
+          "label": "Ecuatorial"
+        }
+      },
+      "metrics": {
+        "temp": {
+          "label": "Índice de color frío-cálido",
+          "unit": "índice 0..1",
+          "derived_from": "tono (hue HSV) del píxel: azul = 0, rojo = 1",
+          "caveat": "Posición en la paleta de colores de la visualización, no temperatura en °C."
+        },
+        "speed": {
+          "label": "Movimiento aparente",
+          "unit": "px/frame",
+          "derived_from": "magnitud media del flujo óptico (Farneback)",
+          "caveat": "Depende de la resolución de análisis (--width) y del ritmo de la animación; no es velocidad en m/s."
+        },
+        "u": {
+          "label": "Movimiento aparente este-oeste",
+          "unit": "px/frame",
+          "derived_from": "componente horizontal del flujo óptico (+ = este)",
+          "caveat": "En proyección equirectangular un píxel horizontal abarca menos km cuanto más cerca del polo."
+        },
+        "v": {
+          "label": "Movimiento aparente norte-sur",
+          "unit": "px/frame",
+          "derived_from": "componente vertical del flujo óptico (+ = norte)",
+          "caveat": "Movimiento de las líneas dibujadas, no velocidad meridional física."
+        },
+        "vort": {
+          "label": "Turbulencia aparente",
+          "unit": "1/frame",
+          "derived_from": "valor absoluto del rotacional del flujo óptico",
+          "caveat": "Indicador de remolinos en la imagen, no vorticidad física en 1/s."
+        },
+        "cover": {
+          "label": "Cobertura de píxeles válidos",
+          "unit": "fracción 0..1",
+          "derived_from": "píxeles que pasan la máscara de saturación y brillo",
+          "caveat": "Fracción de píxeles coloreados, no fracción real de océano."
+        }
+      },
+      "effects": {
+        "acordes": {
+          "temp": "la diferencia Latitudes medias norte − Latitudes medias sur elige acordes más oscuros o más brillantes, compás a compás; con los más brillantes, las cuerdas suben una octava"
+        },
+        "temperatura": {
+          "temp": "la media de las cinco franjas fija el volumen del acorde"
+        },
+        "corrientes": {
+          "speed": "cada franja tiene su voz: suena cuando esta medida supera el 45 % de su rango, y más fuerte cuanto más alta es",
+          "temp": "sube o baja la nota de la franja (±5 semitonos; norte = agudo, sur = grave)",
+          "vort": "la media de las cinco franjas cambia el timbre (modulación)"
+        },
+        "remolinos": {
+          "vort": "una campanada en cada pico de la franja (más de 1,6 desviaciones típicas sobre su mediana); más aguda cuanto más al norte"
+        },
+        "ecuatorial": {
+          "u": "cuanto más bajo (más negativo) el valor, más notas por compás y más fuertes"
+        }
+      },
+      "credits": {
+        "0": {
+          "role": "Fuente",
+          "text": "NASA Global Modeling and Assimilation Office (GMAO)"
+        },
+        "1": {
+          "role": "Música",
+          "text": "Generada por este proyecto a partir de índices visuales del video",
+          "detail": "Preview FM de 2 operadores (no es Dexed ni un DX7 real)"
+        }
+      }
+    }
+  },
+  "assets": {
+    "media/jukebox/viento.mp4": {
+      "bytes": 4644304,
+      "sha256": "af0a678b6b50afb7487102a0f5b70c03831a5119ec60aa48736eb6cb1dab79ad"
+    },
+    "data/jukebox/viento_timeline.json": {
+      "bytes": 118884,
+      "sha256": "abd79e2e43e32ea24655cb4eec957072447fc2f0f42dfca02254712cd8fa8e93"
+    },
+    "media/jukebox/viento_temperatura.m4a": {
+      "bytes": 515412,
+      "sha256": "0e3e55fd13c44e6f7160b7bc600428e234ebec9eb90ec4dea6006731f0fcc30e"
+    },
+    "media/jukebox/viento_corrientes.m4a": {
+      "bytes": 513661,
+      "sha256": "a710ff62704e12b09d08b47e7cf463a06e8cbe0ba885257f1b212a87e335efd9"
+    },
+    "media/jukebox/viento_remolinos.m4a": {
+      "bytes": 396705,
+      "sha256": "9f9be774bd823047f8b984d7bb3c13e6244dabd09767c6171f3f1ecf396bab90"
+    },
+    "media/jukebox/viento_ecuatorial.m4a": {
+      "bytes": 523457,
+      "sha256": "79e927af88a0d2185d54fb177a40a063deae1cf7665a9d7e11069cc9efbfa79e"
+    }
+  }
+}

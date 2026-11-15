@@ -46,83 +46,6 @@ a {
   padding: 0.5rem 1rem;
 }
 
-.spiral {
-  margin: 1rem 0;
-}
-
-.spiral video {
-  display: block;
-  width: 100%;
-  max-width: 34rem;
-  aspect-ratio: 1;
-  background: #000;
-  border-radius: 0.5rem;
-}
-
-.spiral video {
-  max-width: 40rem;
-}
-
-.still {
-  position: relative;
-  width: 100%;
-  max-width: 40rem;
-  background: #000;
-  border-radius: 0.5rem;
-  overflow: hidden;
-}
-
-.still img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-/* Cursor que marca el año que suena sobre la imagen fija (CO₂). */
-.playhead {
-  position: absolute;
-  width: 2px;
-  margin-left: -1px;
-  background: var(--focus);
-  box-shadow: 0 0 6px var(--focus);
-  pointer-events: none;
-}
-
-.spiral figcaption {
-  max-width: 34rem;
-  margin-top: 0.5rem;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.spiral figcaption span {
-  display: block;
-}
-
-#spiral-credit {
-  margin-top: 0.25rem;
-  font-style: italic;
-}
-
-.readout {
-  display: flex;
-  align-items: baseline;
-  gap: 1.5rem;
-  margin-block: 1rem;
-  font-variant-numeric: tabular-nums;
-}
-
-#year {
-  font-size: 4rem;
-  font-weight: 700;
-}
-
-#value {
-  font-size: 1.75rem;
-  color: var(--accent);
-}
-
 button {
   font: inherit;
   font-size: 1.25rem;
@@ -147,13 +70,6 @@ button:not(.primary) {
   padding: 0.6rem 1.2rem;
 }
 
-.buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-}
-
 kbd {
   font-family: ui-monospace, monospace;
   font-size: 0.85em;
@@ -164,16 +80,6 @@ kbd {
 
 button.primary kbd {
   border-color: var(--bg);
-}
-
-.field {
-  margin-block: 1rem;
-}
-
-.field label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
 }
 
 select,
@@ -198,17 +104,6 @@ input[type="checkbox"] {
   accent-color: var(--accent);
 }
 
-.modes label {
-  display: flex;
-  gap: 0.5rem;
-  align-items: baseline;
-}
-
-.announce-log {
-  min-height: 1.5em;
-  color: var(--muted);
-}
-
 .shortcuts {
   display: grid;
   grid-template-columns: max-content 1fr;
@@ -228,12 +123,6 @@ fieldset {
 fieldset label {
   display: block;
   padding-block: 0.25rem;
-}
-
-/* Prueba a ciegas: quien escucha no ve el vídeo, el año ni el valor. */
-body.blind .spiral,
-body.blind .readout {
-  visibility: hidden;
 }
 
 footer {

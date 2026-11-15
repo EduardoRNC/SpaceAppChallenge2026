@@ -1,0 +1,64 @@
+{
+  "id": "ecco2",
+  "analyzer": "ocean_flow",
+  "svs": 3912,
+  "source": {
+    "video": "data/media/ecco2/ecco2_sst_flow.mp4",
+    "dates": "data/media/ecco2/flat_ecco2_dates.txt",
+    "date_range": ["2007-03-25T12:00Z", "2008-03-03T12:00Z"],
+    "downloads": [
+      {"url": "https://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/ecco2_sst_flow.mp4",
+       "file": "data/media/ecco2/ecco2_sst_flow.mp4", "bytes": 256266335},
+      {"url": "https://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/flat_ecco2_dates.txt",
+       "file": "data/media/ecco2/flat_ecco2_dates.txt"},
+      {"url": "https://svs.gsfc.nasa.gov/vis/a000000/a003900/a003912/sst_ecco2_cbar.png",
+       "file": "data/media/ecco2/sst_ecco2_cbar.png"}
+    ]
+  },
+  "texts": {
+    "en": {
+      "title": "Ocean currents and temperature (ECCO2)",
+      "intro": "One year of ocean currents and temperature from the ECCO2 model, as shown in the NASA SVS visualization, turned into four voices.",
+      "caption": "Surface currents colored by sea temperature (blue, cold; red, warm). Visualization: NASA/GSFC Scientific Visualization Studio.",
+      "proxy_note": "In this video, fast changes in apparent motion and turbulence are mostly compression noise; the color index does follow the seasons.",
+      "stems": {
+        "temperatura": {"label": "Temperature"},
+        "corrientes": {"label": "Currents"},
+        "remolinos": {"label": "Eddies"},
+        "ecuatorial": {"label": "Equatorial current"}
+      },
+      "effects": {
+        "acordes": {"temp": "the north − south difference (the seasons) picks darker or brighter chords, bar by bar; with the brightest ones, the strings move up an octave"},
+        "corrientes": {"speed": "each band has its own voice: it sounds when its motion exceeds 45% of its range, and louder the more it moves"},
+        "ecuatorial": {"u": "the more westward (negative values), the more notes per bar and the louder they are"}
+      }
+    },
+    "es": {
+      "title": "Corrientes y temperatura del océano (ECCO2)",
+      "intro": "Las corrientes y la temperatura del océano de un año del modelo ECCO2, en la visualización del NASA SVS, convertidas en cuatro voces.",
+      "caption": "Corrientes superficiales coloreadas por la temperatura del mar (azul, frío; rojo, cálido). Visualización: NASA/GSFC Scientific Visualization Studio.",
+      "proxy_note": "En este vídeo, las variaciones rápidas de movimiento aparente y turbulencia se deben sobre todo al ruido de compresión; el índice de color sí sigue las estaciones.",
+      "stems": {
+        "temperatura": {"label": "Temperatura"},
+        "corrientes": {"label": "Corrientes"},
+        "remolinos": {"label": "Remolinos"},
+        "ecuatorial": {"label": "Corriente ecuatorial"}
+      },
+      "effects": {
+        "acordes": {"temp": "la diferencia norte − sur (las estaciones) elige, compás a compás, acordes oscuros o brillantes; con los más brillantes, las cuerdas suben una octava"},
+        "corrientes": {"speed": "cada franja tiene su voz: suena cuando su movimiento supera el 45 % de su rango, y más fuerte cuanto más se mueve"},
+        "ecuatorial": {"u": "cuanto más hacia el oeste (valores negativos), más notas por compás y más fuertes"}
+      }
+    }
+  },
+  "credits": [
+    {"role": {"en": "Visualization", "es": "Visualización"},
+     "text": "NASA/Goddard Space Flight Center Scientific Visualization Studio",
+     "detail": "Greg Shirah, Horace Mitchell (NASA/GSFC), Eric Sokolowsky (GST)",
+     "url": "https://svs.gsfc.nasa.gov/3912/"},
+    {"role": {"en": "Science", "es": "Ciencia"},
+     "text": {"en": "ECCO2 model (MIT/JPL)", "es": "Modelo ECCO2 (MIT/JPL)"},
+     "detail": "Hong Zhang (UCLA), Dimitris Menemenlis (NASA/JPL)",
+     "url": "https://ecco.jpl.nasa.gov/"}
+  ]
+}
